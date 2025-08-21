@@ -54,7 +54,7 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
 
         if (error) throw error
         setTeams(data || [])
-
+        console.log("teams", data)
         // Initialize custom team values with default values
         const defaultValues: Record<string, number> = {}
         data?.forEach((team) => {
@@ -116,7 +116,7 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
           description: formData.description.trim() || null,
           visibility: formData.visibility,
           owner_id: userId,
-          season_id: "current", // This would be the current season ID
+          season_id: 1, // This would be the current season ID
           join_code: formData.visibility === "private" ? generateJoinCode() : null,
           rules_json: {
             picks_per_week: 2,

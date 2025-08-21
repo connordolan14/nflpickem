@@ -1,23 +1,23 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/lib/auth"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
-import { DashboardStats } from "@/components/dashboard/dashboard-stats"
-import { MyLeagues } from "@/components/dashboard/my-leagues"
-import { WeeklyPicks } from "@/components/dashboard/weekly-picks"
-import { RecentActivity } from "@/components/dashboard/recent-activity"
-import { Header } from "@/components/layout/header"
+import { useAuth } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { DashboardStats } from "@/components/dashboard/dashboard-stats";
+import { MyLeagues } from "@/components/dashboard/my-leagues";
+import { WeeklyPicks } from "@/components/dashboard/weekly-picks";
+import { RecentActivity } from "@/components/dashboard/recent-activity";
+import { Header } from "@/components/layout/header";
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  //!hey there
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/auth")
+      router.push("/auth");
     }
-  }, [user, loading, router])
+  }, [user, loading, router]);
 
   if (loading) {
     return (
@@ -32,11 +32,11 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
-    return null
+    return null;
   }
 
   return (
@@ -44,8 +44,12 @@ export default function DashboardPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold font-serif text-foreground mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's your NFL PickEm overview.</p>
+          <h1 className="text-3xl font-bold font-serif text-foreground mb-2">
+            Dashboard
+          </h1>
+          <p className="text-muted-foreground">
+            Welcome back! Here's your NFL PickEm overview.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -63,5 +67,5 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

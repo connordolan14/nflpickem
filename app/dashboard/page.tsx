@@ -12,7 +12,7 @@ import { Header } from "@/components/layout/header";
 export default function DashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  //!hey there
+
   useEffect(() => {
     if (!loading && !user) {
       router.push("/auth");

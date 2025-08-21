@@ -27,7 +27,7 @@ export interface League {
   name: string
   visibility: "public" | "private"
   owner_id: string
-  season_id: string
+  season_id: number
   join_code: string | null
   rules_json: any
   description: string | null

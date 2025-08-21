@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { supabase } from "@/lib/supabase"
+import { fetchCurrentSeasonId } from "@/lib/season"
 import { Calendar, Target, ChevronUp, ChevronDown, Loader2 } from "lucide-react"
 import { GameCard } from "./game-card"
 import { PicksSummary } from "./picks-summary"
@@ -58,9 +59,27 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [error, setError] = useState("")
   const [showGames, setShowGames] = useState(true)
+  const [seasonId, setSeasonId] = useState<number | null>(null)
+  const [seasonLoading, setSeasonLoading] = useState(true)
 
   useEffect(() => {
-    fetchWeekData()
+    let cancelled = false
+    async function run() {
+      try {
+        if (seasonId == null) {
+          const s = await fetchCurrentSeasonId(supabase)
+          if (!cancelled) setSeasonId(s)
+        }
+        await fetchWeekData()
+      } catch (err) {
+        console.error('Season init error', err)
+      } finally {
+        if (!cancelled) setSeasonLoading(false)
+      }
+    }
+    run()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId, userId, currentWeek])
 
   const fetchWeekData = async () => {
@@ -206,12 +225,12 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
       // Delete existing picks for this week
       await supabase.from("picks").delete().eq("league_id", leagueId).eq("user_id", userId).eq("week", currentWeek)
 
-      if (usingBye) {
+    if (usingBye) {
         // Insert bye week pick
         const { error: byeError } = await supabase.from("picks").insert({
           league_id: leagueId,
           user_id: userId,
-          season_id: "current",
+      season_id: seasonId,
           week: currentWeek,
           game_id: null,
           picked_team_id: null,
@@ -232,12 +251,12 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         if (stateError) throw stateError
       } else {
         // Insert team picks
-        const pickInserts = selectedTeams.map((teamId, index) => {
+    const pickInserts = selectedTeams.map((teamId, index) => {
           const game = games.find((g) => g.home_team_id === teamId || g.away_team_id === teamId)
           return {
             league_id: leagueId,
             user_id: userId,
-            season_id: "current",
+      season_id: seasonId,
             week: currentWeek,
             game_id: game?.id || null,
             picked_team_id: teamId,

@@ -1,39 +1,40 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { supabase } from "@/lib/supabase"
-import { Loader2, Users, Lock, Globe, Settings } from "lucide-react"
-import { TeamPointsCustomizer } from "./team-points-customizer"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
+import { Loader2, Users, Lock, Globe, Settings } from "lucide-react";
+import { TeamPointsCustomizer } from "./team-points-customizer";
 
 interface LeagueCreationFormProps {
-  userId: string
+  userId: string;
 }
 
 interface NFLTeam {
-  id: string
-  nfl_team_code: string
-  display_name: string
-  points_value: number
+  id: string;
+  nfl_team_code: string;
+  display_name: string;
+  logo: string;
+  points_value: number;
 }
 
 export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [teams, setTeams] = useState<NFLTeam[]>([])
-  const [error, setError] = useState("")
-  const [step, setStep] = useState(1)
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [teams, setTeams] = useState<NFLTeam[]>([]);
+  const [error, setError] = useState("");
+  const [step, setStep] = useState(1);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -42,70 +43,70 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
     visibility: "private" as "public" | "private",
     useCustomPoints: false,
     customTeamValues: {} as Record<string, number>,
-  })
+  });
 
   useEffect(() => {
     async function fetchTeams() {
       try {
         const { data, error } = await supabase
           .from("teams")
-          .select("id, nfl_team_code, display_name, points_value")
-          .order("display_name")
+          .select("id, nfl_team_code, display_name, logo, points_value")
+          .order("display_name");
 
-        if (error) throw error
-        setTeams(data || [])
-        console.log("teams", data)
+        if (error) throw error;
+        setTeams(data || []);
+        console.log("teams", data);
         // Initialize custom team values with default values
-        const defaultValues: Record<string, number> = {}
+        const defaultValues: Record<string, number> = {};
         data?.forEach((team) => {
-          defaultValues[team.id] = team.points_value
-        })
-        setFormData((prev) => ({ ...prev, customTeamValues: defaultValues }))
+          defaultValues[team.id] = team.points_value;
+        });
+        setFormData((prev) => ({ ...prev, customTeamValues: defaultValues }));
       } catch (error) {
-        console.error("Error fetching teams:", error)
-        setError("Failed to load NFL teams. Please try again.")
+        console.error("Error fetching teams:", error);
+        setError("Failed to load NFL teams. Please try again.");
       }
     }
 
-    fetchTeams()
-  }, [])
+    fetchTeams();
+  }, []);
 
   const generateJoinCode = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase()
-  }
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  };
 
   const validateForm = () => {
     if (!formData.name.trim()) {
-      setError("League name is required")
-      return false
+      setError("League name is required");
+      return false;
     }
     if (formData.name.length > 50) {
-      setError("League name must be 50 characters or less")
-      return false
+      setError("League name must be 50 characters or less");
+      return false;
     }
 
     if (formData.useCustomPoints) {
-      const values = Object.values(formData.customTeamValues)
-      const uniqueValues = new Set(values)
+      const values = Object.values(formData.customTeamValues);
+      const uniqueValues = new Set(values);
       if (values.length !== uniqueValues.size) {
-        setError("All team point values must be unique")
-        return false
+        setError("All team point values must be unique");
+        return false;
       }
       if (values.some((v) => v < 1 || v > 32)) {
-        setError("Team point values must be between 1 and 32")
-        return false
+        setError("Team point values must be between 1 and 32");
+        return false;
       }
     }
 
-    return true
-  }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validateForm()) return
+    e.preventDefault();
+    if (!validateForm()) return;
 
-    setLoading(true)
-    setError("")
+    setLoading(true);
+    setError("");
 
     try {
       // Create league
@@ -117,7 +118,8 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
           visibility: formData.visibility,
           owner_id: userId,
           season_id: 1, // This would be the current season ID
-          join_code: formData.visibility === "private" ? generateJoinCode() : null,
+          join_code:
+            formData.visibility === "private" ? generateJoinCode() : null,
           rules_json: {
             picks_per_week: 2,
             max_byes: 4,
@@ -125,50 +127,58 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
           },
         })
         .select()
-        .single()
+        .single();
 
-      if (leagueError) throw leagueError
+      if (leagueError) throw leagueError;
 
       // Add creator as admin member
-      const { error: memberError } = await supabase.from("league_members").insert({
-        league_id: league.id,
-        user_id: userId,
-        role: "admin",
-      })
+      const { error: memberError } = await supabase
+        .from("league_members")
+        .insert({
+          league_id: league.id,
+          user_id: userId,
+          role: "admin",
+        });
 
-      if (memberError) throw memberError
+      if (memberError) throw memberError;
 
       // Initialize member state
-      const { error: stateError } = await supabase.from("league_member_state").insert({
-        league_id: league.id,
-        user_id: userId,
-        byes_used: 0,
-      })
+      const { error: stateError } = await supabase
+        .from("league_member_state")
+        .insert({
+          league_id: league.id,
+          user_id: userId,
+          byes_used: 0,
+        });
 
-      if (stateError) throw stateError
+      if (stateError) throw stateError;
 
       // Insert custom team values if specified
       if (formData.useCustomPoints) {
-        const teamValueInserts = Object.entries(formData.customTeamValues).map(([teamId, pointsValue]) => ({
-          league_id: league.id,
-          team_id: teamId,
-          points_value: pointsValue,
-        }))
+        const teamValueInserts = Object.entries(formData.customTeamValues).map(
+          ([teamId, pointsValue]) => ({
+            league_id: league.id,
+            team_id: teamId,
+            points_value: pointsValue,
+          })
+        );
 
-        const { error: valuesError } = await supabase.from("league_team_values").insert(teamValueInserts)
+        const { error: valuesError } = await supabase
+          .from("league_team_values")
+          .insert(teamValueInserts);
 
-        if (valuesError) throw valuesError
+        if (valuesError) throw valuesError;
       }
 
       // Redirect to league page
-      router.push(`/leagues/${league.id}`)
+      router.push(`/leagues/${league.id}`);
     } catch (error: any) {
-      console.error("Error creating league:", error)
-      setError(error.message || "Failed to create league. Please try again.")
+      console.error("Error creating league:", error);
+      setError(error.message || "Failed to create league. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const updateCustomTeamValue = (teamId: string, value: number) => {
     setFormData((prev) => ({
@@ -177,8 +187,8 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
         ...prev.customTeamValues,
         [teamId]: value,
       },
-    }))
-  }
+    }));
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -196,13 +206,17 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               placeholder="Enter league name"
               maxLength={50}
               className="bg-input/50 backdrop-blur-sm"
               required
             />
-            <p className="text-xs text-muted-foreground">{formData.name.length}/50 characters</p>
+            <p className="text-xs text-muted-foreground">
+              {formData.name.length}/50 characters
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -210,7 +224,12 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               placeholder="Describe your league..."
               className="bg-input/50 backdrop-blur-sm"
               rows={3}
@@ -225,7 +244,10 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
                   id="visibility"
                   checked={formData.visibility === "public"}
                   onCheckedChange={(checked) =>
-                    setFormData((prev) => ({ ...prev, visibility: checked ? "public" : "private" }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      visibility: checked ? "public" : "private",
+                    }))
                   }
                 />
                 <Label htmlFor="visibility" className="flex items-center">
@@ -243,7 +265,9 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
                 </Label>
               </div>
               <Badge variant="outline" className="text-xs">
-                {formData.visibility === "public" ? "Anyone can join" : "Invite only"}
+                {formData.visibility === "public"
+                  ? "Anyone can join"
+                  : "Invite only"}
               </Badge>
             </div>
           </div>
@@ -261,7 +285,12 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
         <CardContent className="space-y-4">
           <RadioGroup
             value={formData.useCustomPoints ? "custom" : "default"}
-            onValueChange={(value) => setFormData((prev) => ({ ...prev, useCustomPoints: value === "custom" }))}
+            onValueChange={(value) =>
+              setFormData((prev) => ({
+                ...prev,
+                useCustomPoints: value === "custom",
+              }))
+            }
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="default" id="default" />
@@ -269,7 +298,9 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="custom" id="custom" />
-              <Label htmlFor="custom">Customize point values for this league</Label>
+              <Label htmlFor="custom">
+                Customize point values for this league
+              </Label>
             </div>
           </RadioGroup>
 
@@ -295,7 +326,11 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90">
+        <Button
+          type="submit"
+          disabled={loading}
+          className="bg-primary hover:bg-primary/90"
+        >
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -307,5 +342,5 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
         </Button>
       </div>
     </form>
-  )
+  );
 }

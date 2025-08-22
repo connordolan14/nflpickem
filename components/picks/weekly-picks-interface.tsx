@@ -1,85 +1,103 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { supabase } from "@/lib/supabase"
-import { Calendar, Target, ChevronUp, ChevronDown, Loader2 } from "lucide-react"
-import { GameCard } from "./game-card"
-import { PicksSummary } from "./picks-summary"
-import { ConfirmationModal } from "./confirmation-modal"
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/lib/supabase";
+import {
+  Calendar,
+  Target,
+  ChevronUp,
+  ChevronDown,
+  Loader2,
+} from "lucide-react";
+import { GameCard } from "./game-card";
+import { PicksSummary } from "./picks-summary";
+import { ConfirmationModal } from "./confirmation-modal";
 
 interface WeeklyPicksInterfaceProps {
-  leagueId: string
-  userId: string
+  leagueId: string;
+  userId: string;
 }
 
 interface GameData {
-  id: string
-  week: number
-  home_team_id: string
-  away_team_id: string
-  home_team: string
-  home_code: string
-  away_team: string
-  away_code: string
-  home_points: number
-  away_points: number
-  kickoff_ts: string
-  status: string
-  winner_team_id: string | null
+  id: string;
+  week: number;
+  home_team_id: string;
+  away_team_id: string;
+  home_team: string;
+  home_code: string;
+  away_team: string;
+  away_code: string;
+  home_points: number;
+  away_points: number;
+  kickoff_ts: string;
+  status: string;
+  winner_team_id: string | null;
 }
 
 interface PickData {
-  id: string
-  game_id: string
-  picked_team_id: string
-  slot_number: number
-  is_bye: boolean
+  id: string;
+  game_id: string;
+  picked_team_id: string;
+  slot_number: number;
+  is_bye: boolean;
 }
 
 interface UsedTeam {
-  team_id: string
-  week: number
+  team_id: string;
+  week: number;
 }
 
-export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceProps) {
-  const [currentWeek, setCurrentWeek] = useState(1)
-  const [games, setGames] = useState<GameData[]>([])
-  const [picks, setPicks] = useState<PickData[]>([])
-  const [usedTeams, setUsedTeams] = useState<UsedTeam[]>([])
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([])
-  const [byesUsed, setByesUsed] = useState(0)
-  const [usingBye, setUsingBye] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [showConfirmation, setShowConfirmation] = useState(false)
-  const [error, setError] = useState("")
-  const [showGames, setShowGames] = useState(true)
+export function WeeklyPicksInterface({
+  leagueId,
+  userId,
+}: WeeklyPicksInterfaceProps) {
+  const [currentWeek, setCurrentWeek] = useState(1);
+  const [games, setGames] = useState<GameData[]>([]);
+  const [picks, setPicks] = useState<PickData[]>([]);
+  const [usedTeams, setUsedTeams] = useState<UsedTeam[]>([]);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [byesUsed, setByesUsed] = useState(0);
+  const [usingBye, setUsingBye] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [error, setError] = useState("");
+  const [showGames, setShowGames] = useState(true);
 
   useEffect(() => {
-    fetchWeekData()
-  }, [leagueId, userId, currentWeek])
+    fetchWeekData();
+  }, [leagueId, userId, currentWeek]);
 
   const fetchWeekData = async () => {
-    setLoading(true)
-    setError("")
+    setLoading(true);
+    setError("");
 
     try {
       // Fetch games for the week
       const { data: gamesData, error: gamesError } = await supabase
         .from("games")
-        .select(`
+        .select(
+          `
           *,
           home_team:teams!games_home_team_id_fkey(display_name, nfl_team_code, points_value),
           away_team:teams!games_away_team_id_fkey(display_name, nfl_team_code, points_value)
-        `)
+        `
+        )
         .eq("week", currentWeek)
-        .order("kickoff_ts")
+        .order("kickoff_ts");
 
-      if (gamesError) throw gamesError
+      if (gamesError) throw gamesError;
+      console.log("gamesData", gamesData);
 
       // Transform games data
       const transformedGames: GameData[] =
@@ -97,9 +115,9 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
           kickoff_ts: game.kickoff_ts,
           status: game.status,
           winner_team_id: game.winner_team_id,
-        })) || []
+        })) || [];
 
-      setGames(transformedGames)
+      setGames(transformedGames);
 
       // Fetch existing picks for this week
       const { data: picksData, error: picksError } = await supabase
@@ -107,13 +125,13 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         .select("*")
         .eq("league_id", leagueId)
         .eq("user_id", userId)
-        .eq("week", currentWeek)
+        .eq("week", currentWeek);
 
-      if (picksError) throw picksError
+      if (picksError) throw picksError;
 
-      setPicks(picksData || [])
-      setSelectedTeams(picksData?.map((pick) => pick.picked_team_id) || [])
-      setUsingBye(picksData?.some((pick) => pick.is_bye) || false)
+      setPicks(picksData || []);
+      setSelectedTeams(picksData?.map((pick) => pick.picked_team_id) || []);
+      setUsingBye(picksData?.some((pick) => pick.is_bye) || false);
 
       // Fetch all used teams for the season
       const { data: usedTeamsData, error: usedError } = await supabase
@@ -121,16 +139,16 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         .select("picked_team_id, week")
         .eq("league_id", leagueId)
         .eq("user_id", userId)
-        .neq("week", currentWeek)
+        .neq("week", currentWeek);
 
-      if (usedError) throw usedError
+      if (usedError) throw usedError;
 
       setUsedTeams(
         usedTeamsData?.map((pick) => ({
           team_id: pick.picked_team_id,
           week: pick.week,
-        })) || [],
-      )
+        })) || []
+      );
 
       // Fetch byes used
       const { data: memberState, error: stateError } = await supabase
@@ -138,73 +156,78 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         .select("byes_used")
         .eq("league_id", leagueId)
         .eq("user_id", userId)
-        .single()
+        .single();
 
-      if (stateError) throw stateError
+      if (stateError) throw stateError;
 
-      setByesUsed(memberState?.byes_used || 0)
+      setByesUsed(memberState?.byes_used || 0);
     } catch (error: any) {
-      console.error("Error fetching week data:", error)
-      setError("Failed to load week data. Please try again.")
+      console.error("Error fetching week data:", error);
+      setError("Failed to load week data. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleTeamSelect = (teamId: string, gameId: string) => {
-    if (usingBye) return
-    if (isTeamUsed(teamId) || isGameLocked(gameId)) return
+    if (usingBye) return;
+    if (isTeamUsed(teamId) || isGameLocked(gameId)) return;
 
     setSelectedTeams((prev) => {
       if (prev.includes(teamId)) {
         // Deselect team
-        return prev.filter((id) => id !== teamId)
+        return prev.filter((id) => id !== teamId);
       } else if (prev.length < 2) {
         // Select team
-        return [...prev, teamId]
+        return [...prev, teamId];
       } else {
         // Replace oldest selection
-        return [prev[1], teamId]
+        return [prev[1], teamId];
       }
-    })
-  }
+    });
+  };
 
   const handleByeWeek = () => {
-    if (byesUsed >= 4) return
+    if (byesUsed >= 4) return;
 
-    setUsingBye(!usingBye)
+    setUsingBye(!usingBye);
     if (!usingBye) {
-      setSelectedTeams([])
+      setSelectedTeams([]);
     }
-  }
+  };
 
   const isTeamUsed = (teamId: string) => {
-    return usedTeams.some((used) => used.team_id === teamId)
-  }
+    return usedTeams.some((used) => used.team_id === teamId);
+  };
 
   const isGameLocked = (gameId: string) => {
-    const game = games.find((g) => g.id === gameId)
-    if (!game) return false
-    return new Date(game.kickoff_ts) < new Date()
-  }
+    const game = games.find((g) => g.id === gameId);
+    if (!game) return false;
+    return new Date(game.kickoff_ts) < new Date();
+  };
 
   const getUsedWeek = (teamId: string) => {
-    return usedTeams.find((used) => used.team_id === teamId)?.week
-  }
+    return usedTeams.find((used) => used.team_id === teamId)?.week;
+  };
 
   const canSubmit = () => {
-    return usingBye || selectedTeams.length === 2
-  }
+    return usingBye || selectedTeams.length === 2;
+  };
 
   const handleSubmit = async () => {
-    if (!canSubmit()) return
+    if (!canSubmit()) return;
 
-    setSubmitting(true)
-    setError("")
+    setSubmitting(true);
+    setError("");
 
     try {
       // Delete existing picks for this week
-      await supabase.from("picks").delete().eq("league_id", leagueId).eq("user_id", userId).eq("week", currentWeek)
+      await supabase
+        .from("picks")
+        .delete()
+        .eq("league_id", leagueId)
+        .eq("user_id", userId)
+        .eq("week", currentWeek);
 
       if (usingBye) {
         // Insert bye week pick
@@ -218,22 +241,24 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
           slot_number: 1,
           is_bye: true,
           source: "manual",
-        })
+        });
 
-        if (byeError) throw byeError
+        if (byeError) throw byeError;
 
         // Update byes used
         const { error: stateError } = await supabase
           .from("league_member_state")
           .update({ byes_used: byesUsed + 1 })
           .eq("league_id", leagueId)
-          .eq("user_id", userId)
+          .eq("user_id", userId);
 
-        if (stateError) throw stateError
+        if (stateError) throw stateError;
       } else {
         // Insert team picks
         const pickInserts = selectedTeams.map((teamId, index) => {
-          const game = games.find((g) => g.home_team_id === teamId || g.away_team_id === teamId)
+          const game = games.find(
+            (g) => g.home_team_id === teamId || g.away_team_id === teamId
+          );
           return {
             league_id: leagueId,
             user_id: userId,
@@ -244,24 +269,26 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
             slot_number: index + 1,
             is_bye: false,
             source: "manual",
-          }
-        })
+          };
+        });
 
-        const { error: picksError } = await supabase.from("picks").insert(pickInserts)
+        const { error: picksError } = await supabase
+          .from("picks")
+          .insert(pickInserts);
 
-        if (picksError) throw picksError
+        if (picksError) throw picksError;
       }
 
       // Refresh data
-      await fetchWeekData()
-      setShowConfirmation(false)
+      await fetchWeekData();
+      setShowConfirmation(false);
     } catch (error: any) {
-      console.error("Error submitting picks:", error)
-      setError("Failed to submit picks. Please try again.")
+      console.error("Error submitting picks:", error);
+      setError("Failed to submit picks. Please try again.");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -271,7 +298,7 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
           <p className="text-muted-foreground">Loading picks interface...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -279,10 +306,17 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold font-serif text-foreground">Make Your Picks</h1>
-          <p className="text-muted-foreground">Select 2 teams for Week {currentWeek} or use a bye week</p>
+          <h1 className="text-3xl font-bold font-serif text-foreground">
+            Make Your Picks
+          </h1>
+          <p className="text-muted-foreground">
+            Select 2 teams for Week {currentWeek} or use a bye week
+          </p>
         </div>
-        <Select value={currentWeek.toString()} onValueChange={(value) => setCurrentWeek(Number.parseInt(value))}>
+        <Select
+          value={currentWeek.toString()}
+          onValueChange={(value) => setCurrentWeek(Number.parseInt(value))}
+        >
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>
@@ -306,20 +340,31 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
                   <Calendar className="h-5 w-5 mr-2 text-primary" />
                   Week {currentWeek} Games
                 </CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => setShowGames(!showGames)}>
-                  {showGames ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowGames(!showGames)}
+                >
+                  {showGames ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </CardHeader>
             {showGames && (
               <CardContent className="space-y-3">
                 {games.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">No games available for Week {currentWeek}</p>
+                  <p className="text-center text-muted-foreground py-8">
+                    No games available for Week {currentWeek}
+                  </p>
                 ) : (
-                  games.map((game) => (
+                  games.map((game, index) => (
                     <GameCard
                       key={game.id}
                       game={game}
+                      gameIndex={index}
                       selectedTeams={selectedTeams}
                       usedTeams={usedTeams}
                       onTeamSelect={handleTeamSelect}
@@ -381,5 +426,5 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         loading={submitting}
       />
     </div>
-  )
+  );
 }

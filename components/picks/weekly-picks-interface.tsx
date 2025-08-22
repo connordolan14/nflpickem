@@ -88,7 +88,7 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
 
     try {
       // Fetch games for the week
-      const { data: gamesData, error: gamesError } = await supabase
+      let gamesQuery = supabase
         .from("games")
         .select(`
           *,
@@ -97,6 +97,12 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         `)
         .eq("week", currentWeek)
         .order("kickoff_ts")
+
+      if (seasonId != null) {
+        gamesQuery = gamesQuery.eq("season_id", seasonId)
+      }
+
+      const { data: gamesData, error: gamesError } = await gamesQuery
 
       if (gamesError) throw gamesError
 
@@ -121,12 +127,16 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
       setGames(transformedGames)
 
       // Fetch existing picks for this week
-      const { data: picksData, error: picksError } = await supabase
+      let picksQuery = supabase
         .from("picks")
         .select("*")
         .eq("league_id", leagueId)
         .eq("user_id", userId)
         .eq("week", currentWeek)
+      if (seasonId != null) {
+        picksQuery = picksQuery.eq("season_id", seasonId)
+      }
+      const { data: picksData, error: picksError } = await picksQuery
 
       if (picksError) throw picksError
 
@@ -135,12 +145,16 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
       setUsingBye(picksData?.some((pick) => pick.is_bye) || false)
 
       // Fetch all used teams for the season
-      const { data: usedTeamsData, error: usedError } = await supabase
+      let usedTeamsQuery = supabase
         .from("picks")
         .select("picked_team_id, week")
         .eq("league_id", leagueId)
         .eq("user_id", userId)
         .neq("week", currentWeek)
+      if (seasonId != null) {
+        usedTeamsQuery = usedTeamsQuery.eq("season_id", seasonId)
+      }
+      const { data: usedTeamsData, error: usedError } = await usedTeamsQuery
 
       if (usedError) throw usedError
 
@@ -222,21 +236,34 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
     setError("")
 
     try {
-      // Delete existing picks for this week
-      await supabase.from("picks").delete().eq("league_id", leagueId).eq("user_id", userId).eq("week", currentWeek)
+      // Ensure we have a seasonId before proceeding
+      let effectiveSeasonId = seasonId
+      if (effectiveSeasonId == null) {
+        effectiveSeasonId = await fetchCurrentSeasonId(supabase)
+        setSeasonId(effectiveSeasonId)
+      }
+
+      // Delete existing picks for this week (scoped by season)
+      await supabase
+        .from("picks")
+        .delete()
+        .eq("league_id", leagueId)
+        .eq("user_id", userId)
+        .eq("week", currentWeek)
+        .eq("season_id", effectiveSeasonId)
 
     if (usingBye) {
         // Insert bye week pick
         const { error: byeError } = await supabase.from("picks").insert({
-          league_id: leagueId,
+          league_id: Number(leagueId),
           user_id: userId,
-      season_id: seasonId,
+      season_id: effectiveSeasonId,
           week: currentWeek,
           game_id: null,
           picked_team_id: null,
-          slot_number: 1,
+          slot_number: null,
           is_bye: true,
-          source: "manual",
+          source: 'auto_bye',
         })
 
         if (byeError) throw byeError
@@ -254,15 +281,14 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
     const pickInserts = selectedTeams.map((teamId, index) => {
           const game = games.find((g) => g.home_team_id === teamId || g.away_team_id === teamId)
           return {
-            league_id: leagueId,
+            league_id: Number(leagueId),
             user_id: userId,
-      season_id: seasonId,
+      season_id: effectiveSeasonId,
             week: currentWeek,
-            game_id: game?.id || null,
-            picked_team_id: teamId,
+            game_id: game?.id != null ? Number(game.id) : null,
+            picked_team_id: Number(teamId),
             slot_number: index + 1,
             is_bye: false,
-            source: "manual",
           }
         })
 
@@ -370,7 +396,7 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
 
           <Button
             onClick={() => setShowConfirmation(true)}
-            disabled={!canSubmit() || submitting}
+            disabled={!canSubmit() || submitting || seasonLoading}
             className="w-full bg-primary hover:bg-primary/90"
             size="lg"
           >
@@ -397,7 +423,7 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         usingBye={usingBye}
         currentWeek={currentWeek}
         onConfirm={handleSubmit}
-        loading={submitting}
+  loading={submitting || seasonLoading}
       />
     </div>
   )

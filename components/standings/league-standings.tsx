@@ -62,13 +62,19 @@ export function LeagueStandings({ leagueId, userId }: LeagueStandingsProps) {
         setLeague({ ...leagueData, member_count: count || 0 })
         setIsOwner(leagueData.owner_id === userId)
 
-        // Fetch standings using the provided SQL query logic
-        const { data: standingsData, error: standingsError } = await supabase.rpc("get_league_standings", {
-          league_id: leagueId,
-        })
+        // Prefer querying the league_standings view/table directly (RPC may not exist)
+        const { data: standingsData, error: standingsError } = await supabase
+          .from("league_standings")
+          .select("user_id, display_name, total_points, wins, losses, byes_used, rank")
+          .eq("league_id", leagueId)
+          .order("rank", { ascending: true })
 
-        if (standingsError) {
-          // Fallback to manual query if RPC doesn't exist
+        if (standingsError) throw standingsError
+
+        if (standingsData && standingsData.length > 0) {
+          setStandings(standingsData as unknown as StandingData[])
+        } else {
+          // Fallback to members list when there are no computed standings yet
           const { data: membersData, error: membersError } = await supabase
             .from("league_members")
             .select(`
@@ -80,26 +86,23 @@ export function LeagueStandings({ leagueId, userId }: LeagueStandingsProps) {
 
           if (membersError) throw membersError
 
-          // Mock standings data for now (in real app, would calculate from scores)
-          const mockStandings: StandingData[] = membersData.map((member, index) => ({
-            user_id: member.user_id,
-            display_name: member.profiles.display_name,
-            total_points: Math.floor(Math.random() * 100) + 50,
-            wins: Math.floor(Math.random() * 10) + 2,
-            losses: Math.floor(Math.random() * 5) + 1,
-            byes_used: member.league_member_state.byes_used,
-            rank: index + 1,
-          }))
-
-          // Sort by points descending
-          mockStandings.sort((a, b) => b.total_points - a.total_points)
-          mockStandings.forEach((standing, index) => {
-            standing.rank = index + 1
+          const seedStandings: StandingData[] = (membersData as any[]).map((member: any, index: number) => {
+            const profile = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles
+            const state = Array.isArray(member.league_member_state)
+              ? member.league_member_state[0]
+              : member.league_member_state
+            return {
+              user_id: member.user_id,
+              display_name: profile?.display_name ?? "Member",
+              total_points: 0,
+              wins: 0,
+              losses: 0,
+              byes_used: state?.byes_used ?? 0,
+              rank: index + 1,
+            }
           })
 
-          setStandings(mockStandings)
-        } else {
-          setStandings(standingsData)
+          setStandings(seedStandings)
         }
       } catch (error) {
         console.error("Error fetching league data:", error)

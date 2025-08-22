@@ -28,7 +28,7 @@ export function Header() {
                   Dashboard
                 </Link>
                 <Link href="/leagues" className="text-foreground hover:text-primary transition-colors">
-                  My Leagues
+                  Leagues
                 </Link>
                 <Button onClick={signOut} variant="outline" size="sm">
                   Sign Out
@@ -66,7 +66,7 @@ export function Header() {
                     Dashboard
                   </Link>
                   <Link href="/leagues" className="text-foreground hover:text-primary transition-colors">
-                    My Leagues
+                    Leagues
                   </Link>
                   <Button onClick={signOut} variant="outline" size="sm" className="w-fit bg-transparent">
                     Sign Out

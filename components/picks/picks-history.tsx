@@ -72,7 +72,7 @@ export function PicksHistory({ leagueId, userId }: PicksHistoryProps) {
           is_bye,
           picked_team_id,
           teams:picked_team_id(display_name, nfl_team_code),
-          games!inner(
+          games(
             home_team_id,
             away_team_id,
             winner_team_id,
@@ -114,22 +114,26 @@ export function PicksHistory({ leagueId, userId }: PicksHistoryProps) {
 
       // Process picks data
       const processedPicks: PickHistoryData[] =
-        picksData?.map((pick) => ({
-          week: pick.week,
-          slot_number: pick.slot_number,
-          is_bye: pick.is_bye,
-          team_name: pick.teams?.display_name || null,
-          team_code: pick.teams?.nfl_team_code || null,
-          home_team: pick.games?.home_team?.display_name || null,
-          away_team: pick.games?.away_team?.display_name || null,
-          home_team_id: pick.games?.home_team_id || null,
-          away_team_id: pick.games?.away_team_id || null,
-          winner_team_id: pick.games?.winner_team_id || null,
-          points_earned: pick.games?.winner_team_id === pick.picked_team_id ? Math.floor(Math.random() * 20) + 5 : 0, // Mock points
-          kickoff_ts: pick.games?.kickoff_ts || null,
-          status: pick.games?.status || null,
-          picked_team_id: pick.picked_team_id,
-        })) || []
+        picksData?.map((pick: any) => {
+          const teamRel = Array.isArray(pick.teams) ? pick.teams[0] : pick.teams
+          const gameRel = Array.isArray(pick.games) ? pick.games[0] : pick.games
+          return {
+            week: pick.week,
+            slot_number: pick.slot_number,
+            is_bye: pick.is_bye,
+            team_name: teamRel?.display_name || null,
+            team_code: teamRel?.nfl_team_code || null,
+            home_team: gameRel?.home_team?.display_name || null,
+            away_team: gameRel?.away_team?.display_name || null,
+            home_team_id: gameRel?.home_team_id || null,
+            away_team_id: gameRel?.away_team_id || null,
+            winner_team_id: gameRel?.winner_team_id || null,
+            points_earned: gameRel?.winner_team_id === pick.picked_team_id ? Math.floor(Math.random() * 20) + 5 : 0, // Mock points
+            kickoff_ts: gameRel?.kickoff_ts || null,
+            status: gameRel?.status || null,
+            picked_team_id: pick.picked_team_id,
+          }
+        }) || []
 
       // Group picks by week
       processedPicks.forEach((pick) => {

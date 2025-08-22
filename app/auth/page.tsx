@@ -65,7 +65,7 @@ export default function AuthPage() {
                 className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
               />
             </div>
-            <Button type="submit" className="w-full bg-white text-nfl-primary hover:bg-white/90" disabled={loading}>
+            <Button type="submit" className="w-full bg-white text-black hover:bg-white/90" disabled={loading}>
               {loading ? "Sending..." : "Send Magic Link"}
             </Button>
           </form>

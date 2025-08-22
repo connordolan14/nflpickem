@@ -2,17 +2,15 @@
 
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, use as unwrap } from "react"
 import { LeagueStandings } from "@/components/standings/league-standings"
 import { Header } from "@/components/layout/header"
 
-interface LeaguePageProps {
-  params: {
-    leagueId: string
-  }
-}
+interface LeaguePageProps { params: { leagueId: string } | Promise<{ leagueId: string }> }
 
 export default function LeaguePage({ params }: LeaguePageProps) {
+  // @ts-ignore unwrap if promise
+  const { leagueId } = typeof (params as any).then === 'function' ? unwrap(params as Promise<{leagueId:string}>) : (params as {leagueId:string})
   const { user, loading } = useAuth()
   const router = useRouter()
 
@@ -46,7 +44,7 @@ export default function LeaguePage({ params }: LeaguePageProps) {
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-accent/10">
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <LeagueStandings leagueId={params.leagueId} userId={user.id} />
+  <LeagueStandings leagueId={leagueId} userId={user.id} />
       </main>
     </div>
   )

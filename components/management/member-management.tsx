@@ -56,15 +56,16 @@ export function MemberManagement({ leagueId, league, onLeagueUpdate }: MemberMan
           user_id,
           role,
           created_at,
-          profiles!inner(display_name, avatar_url)
+          profiles!league_members_user_id_profiles_fkey(display_name, avatar_url)
         `)
         .eq("league_id", leagueId)
         .order("created_at")
 
-      if (error) throw error
+  if (error) throw error
       setMembers(data || [])
     } catch (error) {
-      console.error("Error fetching members:", error)
+  const msg = (error as any)?.message || JSON.stringify(error)
+  console.error("Error fetching members:", msg)
     } finally {
       setLoading(false)
     }

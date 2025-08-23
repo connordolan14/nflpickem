@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase"
+import { fetchCurrentSeasonId } from "@/lib/season"
 import { Users, Trophy, Clock, ArrowRight } from "lucide-react"
 import Link from "next/link"
 
@@ -17,8 +18,8 @@ interface LeagueData {
   name: string
   visibility: string
   member_count: number
-  user_rank: number
-  user_points: number
+  user_rank: number | null
+  user_points: number | null
   next_deadline: string | null
 }
 
@@ -29,6 +30,7 @@ export function MyLeagues({ userId }: MyLeaguesProps) {
   useEffect(() => {
     async function fetchMyLeagues() {
       try {
+        // 1) Memberships with league details and member counts
         const { data, error } = await supabase
           .from("league_members")
           .select(`
@@ -36,24 +38,63 @@ export function MyLeagues({ userId }: MyLeaguesProps) {
             leagues!inner (
               id,
               name,
-              visibility
+              visibility,
+              league_members(count)
             )
           `)
           .eq("user_id", userId)
 
         if (error) throw error
 
-        // Transform data and add mock stats (in real app, would calculate from scores/picks)
-        const leagueData: LeagueData[] =
-          data?.map((item, index) => ({
-            id: item.leagues.id,
-            name: item.leagues.name,
-            visibility: item.leagues.visibility,
-            member_count: Math.floor(Math.random() * 50) + 10, // Mock data
-            user_rank: index + 1, // Mock data
-            user_points: Math.floor(Math.random() * 100) + 50, // Mock data
-            next_deadline: "2024-09-15T13:00:00Z", // Mock data
-          })) || []
+        const memberships = (data as any[]) || []
+        const leagueIds: (string | number)[] = memberships.map((m) => m.leagues.id)
+
+        // 2) User's standings across these leagues
+        let standingsMap = new Map<string | number, { rank: number; total_points: number }>()
+        if (leagueIds.length > 0) {
+          const { data: standings, error: standingsError } = await supabase
+            .from("league_standings")
+            .select("league_id, rank, total_points")
+            .eq("user_id", userId)
+            .in("league_id", leagueIds)
+
+          if (standingsError) throw standingsError
+          ;(standings || []).forEach((s: any) => standingsMap.set(s.league_id, { rank: s.rank, total_points: s.total_points }))
+        }
+
+        // 3) Next upcoming NFL game (deadline) for current season
+        let nextDeadline: string | null = null
+        try {
+          const seasonId = await fetchCurrentSeasonId(supabase)
+          if (seasonId != null) {
+            const { data: nextGame } = await supabase
+              .from("games")
+              .select("kickoff_ts")
+              .eq("season_id", seasonId)
+              .gte("kickoff_ts", new Date().toISOString())
+              .order("kickoff_ts", { ascending: true })
+              .limit(1)
+              .maybeSingle()
+            nextDeadline = nextGame?.kickoff_ts ?? null
+          }
+        } catch {
+          // ignore deadline errors; we'll show null
+        }
+
+        const leagueData: LeagueData[] = memberships.map((item: any) => {
+          const leaguesRel = item.leagues
+          const memberCount = leaguesRel?.league_members?.[0]?.count || 0
+          const userStanding = standingsMap.get(leaguesRel.id)
+          return {
+            id: leaguesRel.id,
+            name: leaguesRel.name,
+            visibility: leaguesRel.visibility,
+            member_count: memberCount,
+            user_rank: userStanding?.rank ?? null,
+            user_points: userStanding?.total_points ?? null,
+            next_deadline: nextDeadline,
+          }
+        })
 
         setLeagues(leagueData)
       } catch (error) {
@@ -138,11 +179,18 @@ export function MyLeagues({ userId }: MyLeaguesProps) {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center text-muted-foreground">
                     <Trophy className="h-4 w-4 mr-1" />
-                    Rank #{league.user_rank} • {league.user_points} pts
+                    {league.user_rank != null ? `Rank #${league.user_rank}` : "Rank N/A"}
+                    {" "}• {league.user_points ?? 0} pts
                   </div>
                   <div className="flex items-center text-muted-foreground">
                     <Clock className="h-4 w-4 mr-1" />
-                    Next: Sun 1:00 PM
+                  {league.next_deadline
+                    ? new Date(league.next_deadline).toLocaleString(undefined, {
+                        weekday: "short",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : "No upcoming games"}
                   </div>
                 </div>
               </div>

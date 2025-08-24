@@ -28,9 +28,11 @@ interface PicksSummaryProps {
   byesUsed: number
   onByeWeek: () => void
   currentWeek: number
+  lockedPicks?: { team_id: string; name: string; code: string; points: number }[]
+  remainingSlots?: number
 }
 
-export function PicksSummary({ selectedTeams, games, usingBye, byesUsed, onByeWeek, currentWeek }: PicksSummaryProps) {
+export function PicksSummary({ selectedTeams, games, usingBye, byesUsed, onByeWeek, currentWeek, lockedPicks = [], remainingSlots = 2 }: PicksSummaryProps) {
   const getTeamInfo = (teamId: string) => {
     for (const game of games) {
       if (game.home_team_id === teamId) {
@@ -60,6 +62,30 @@ export function PicksSummary({ selectedTeams, games, usingBye, byesUsed, onByeWe
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {lockedPicks.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground">Locked pick(s): cannot be changed after kickoff</div>
+            {lockedPicks.map((lp, i) => (
+              <div key={`${lp.team_id}-${i}`} className="p-3 rounded-lg border bg-muted/30 border-border/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="text-xs">Locked</Badge>
+                    <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                      {lp.code}
+                    </div>
+                    <span className="font-medium text-foreground text-sm">{lp.name}</span>
+                  </div>
+                  <Badge variant="outline" className="text-xs">{lp.points} pts</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="text-xs text-muted-foreground">
+          {remainingSlots > 0 ? `${remainingSlots} pick${remainingSlots === 1 ? "" : "s"} remaining this week` : "All weekly picks are locked or already used"}
+        </div>
+
         {usingBye ? (
           <div className="text-center py-6">
             <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-3">

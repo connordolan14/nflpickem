@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { Fragment } from "react"
 
 import { useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -116,9 +117,8 @@ export function StandingsTable({ standings, currentUserId, leagueId }: Standings
               const isExpanded = expandedRows.has(standing.user_id)
 
               return (
-                <>
+                <Fragment key={standing.user_id}>
                   <TableRow
-                    key={standing.user_id}
                     className={`
                       ${isCurrentUser ? "bg-primary/10 border-primary/20" : "hover:bg-muted/20"}
                       transition-colors cursor-pointer
@@ -167,13 +167,13 @@ export function StandingsTable({ standings, currentUserId, leagueId }: Standings
                   </TableRow>
 
                   {isExpanded && (
-                    <TableRow>
+                    <TableRow key={`${standing.user_id}-details`}>
                       <TableCell colSpan={7} className="p-0">
                         <WeeklyBreakdown userId={standing.user_id} leagueId={leagueId} />
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               )
             })}
           </TableBody>

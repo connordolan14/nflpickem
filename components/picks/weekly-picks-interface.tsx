@@ -62,6 +62,8 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
   const [seasonId, setSeasonId] = useState<number | null>(null)
   const [seasonLoading, setSeasonLoading] = useState(true)
 
+  const normalizeId = (v: any): string => (v == null ? "" : String(v))
+
   useEffect(() => {
     let cancelled = false
     async function run() {
@@ -106,13 +108,13 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
 
       if (gamesError) throw gamesError
 
-      // Transform games data
+  // Transform games data
       const transformedGames: GameData[] =
         gamesData?.map((game) => ({
-          id: game.id,
+          id: normalizeId(game.id),
           week: game.week,
-          home_team_id: game.home_team_id,
-          away_team_id: game.away_team_id,
+          home_team_id: normalizeId(game.home_team_id),
+          away_team_id: normalizeId(game.away_team_id),
           home_team: game.home_team.display_name,
           home_code: game.home_team.nfl_team_code,
           away_team: game.away_team.display_name,
@@ -121,7 +123,7 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
           away_points: game.away_team.points_value,
           kickoff_ts: game.kickoff_ts,
           status: game.status,
-          winner_team_id: game.winner_team_id,
+          winner_team_id: game.winner_team_id != null ? normalizeId(game.winner_team_id) : null,
         })) || []
 
       setGames(transformedGames)
@@ -141,7 +143,14 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
       if (picksError) throw picksError
 
       setPicks(picksData || [])
-      setSelectedTeams(picksData?.map((pick) => pick.picked_team_id) || [])
+      // Initialize selectedTeams with only UNLOCKED existing picks (editable)
+      const lockedIds = new Set(
+        transformedGames.filter((g) => new Date(g.kickoff_ts) < new Date()).map((g) => g.id),
+      )
+      const initialEditable = (picksData || [])
+        .filter((p) => !p.is_bye && !lockedIds.has(normalizeId(p.game_id)))
+        .map((p) => normalizeId(p.picked_team_id))
+      setSelectedTeams(initialEditable)
       setUsingBye(picksData?.some((pick) => pick.is_bye) || false)
 
       // Fetch all used teams for the season
@@ -160,7 +169,7 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
 
       setUsedTeams(
         usedTeamsData?.map((pick) => ({
-          team_id: pick.picked_team_id,
+          team_id: normalizeId(pick.picked_team_id),
           week: pick.week,
         })) || [],
       )
@@ -188,22 +197,31 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
     if (usingBye) return
     if (isTeamUsed(teamId) || isGameLocked(gameId)) return
 
+    const slots = unlockedSlotsRemaining()
+    if (slots <= 0) return
+
     setSelectedTeams((prev) => {
       if (prev.includes(teamId)) {
         // Deselect team
         return prev.filter((id) => id !== teamId)
-      } else if (prev.length < 2) {
-        // Select team
-        return [...prev, teamId]
-      } else {
-        // Replace oldest selection
-        return [prev[1], teamId]
       }
+      if (prev.length < slots) {
+        // Add if we still have free editable slots
+        return [...prev, teamId]
+      }
+      // Replace the oldest editable selection but keep size <= slots
+      if (slots === 1) return [teamId]
+      const trimmed = prev.slice(prev.length - (slots - 1))
+      return [...trimmed, teamId]
     })
   }
 
   const handleByeWeek = () => {
     if (byesUsed >= 4) return
+    const slots = unlockedSlotsRemaining()
+    const alreadyBye = hasExistingByeThisWeek()
+    // Can't enable bye if no slots left or a bye already exists this week
+    if (!usingBye && (slots <= 0 || alreadyBye)) return
 
     setUsingBye(!usingBye)
     if (!usingBye) {
@@ -215,9 +233,11 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
     return usedTeams.some((used) => used.team_id === teamId)
   }
 
-  const isGameLocked = (gameId: string) => {
-    const game = games.find((g) => g.id === gameId)
-    if (!game) return false
+  const isGameLocked = (gameId: string | number) => {
+    const gid = normalizeId(gameId)
+    const game = games.find((g) => g.id === gid)
+    // If the game isn't in local cache, treat as locked to be safe
+    if (!game) return true
     return new Date(game.kickoff_ts) < new Date()
   }
 
@@ -225,8 +245,22 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
     return usedTeams.find((used) => used.team_id === teamId)?.week
   }
 
+  const getLockedPicks = () => picks.filter((p) => !p.is_bye && isGameLocked(p.game_id))
+
+  const hasExistingByeThisWeek = () => picks.some((p) => p.is_bye)
+
+  const unlockedSlotsRemaining = () => {
+    const lockedCount = getLockedPicks().length
+    const existingBye = hasExistingByeThisWeek() ? 1 : 0
+    return Math.max(0, 2 - lockedCount - existingBye)
+  }
+
   const canSubmit = () => {
-    return usingBye || selectedTeams.length === 2
+    const slots = unlockedSlotsRemaining()
+    const canAddBye = usingBye && !hasExistingByeThisWeek() && slots > 0
+    const canAddPicks = selectedTeams.length > 0 && slots > 0
+    // Submit only if there is at least one change possible
+    return canAddBye || canAddPicks
   }
 
   const handleSubmit = async () => {
@@ -243,47 +277,71 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         setSeasonId(effectiveSeasonId)
       }
 
-      // Delete existing picks for this week (scoped by season)
-      await supabase
-        .from("picks")
-        .delete()
-        .eq("league_id", leagueId)
-        .eq("user_id", userId)
-        .eq("week", currentWeek)
-        .eq("season_id", effectiveSeasonId)
+      // Determine locked vs unlocked picks for this week
+      const lockedPicks = getLockedPicks()
+      const existingBye = hasExistingByeThisWeek()
+      const unlockedPickIds = picks
+        .filter((p) => p.is_bye || !isGameLocked(p.game_id))
+        .map((p) => p.id)
 
-    if (usingBye) {
-        // Insert bye week pick
+      // Delete only UNLOCKED picks (safe if empty)
+      if (unlockedPickIds.length > 0) {
+        await supabase
+          .from("picks")
+          .delete()
+          .in("id", unlockedPickIds)
+          .eq("league_id", leagueId)
+          .eq("user_id", userId)
+          .eq("week", currentWeek)
+          .eq("season_id", effectiveSeasonId)
+      }
+
+      // How many slots are free after preserving locked picks and any existing bye
+      let slots = Math.max(0, 2 - lockedPicks.length - (existingBye ? 1 : 0))
+
+      // If user toggled bye ON and there is capacity and no existing bye, insert one
+      if (usingBye && !existingBye && slots > 0) {
         const { error: byeError } = await supabase.from("picks").insert({
           league_id: Number(leagueId),
           user_id: userId,
-      season_id: effectiveSeasonId,
+          season_id: effectiveSeasonId,
           week: currentWeek,
           game_id: null,
           picked_team_id: null,
           slot_number: null,
           is_bye: true,
-          source: 'auto_bye',
+          source: "auto_bye",
         })
-
         if (byeError) throw byeError
 
-        // Update byes used
+        // increment byes_used only when adding a new bye
         const { error: stateError } = await supabase
           .from("league_member_state")
           .update({ byes_used: byesUsed + 1 })
           .eq("league_id", leagueId)
           .eq("user_id", userId)
-
         if (stateError) throw stateError
-      } else {
-        // Insert team picks
-    const pickInserts = selectedTeams.map((teamId, index) => {
+
+        slots -= 1
+      }
+
+      // Insert team picks for remaining open slots, skipping teams already locked-in this week
+      if (slots > 0 && selectedTeams.length > 0) {
+    const lockedTeamIds = new Set(lockedPicks.map((p) => normalizeId(p.picked_team_id)))
+        const teamsToInsert = selectedTeams
+          .filter((tid) => !lockedTeamIds.has(tid))
+          .filter((tid) => {
+      const game = games.find((g) => g.home_team_id === tid || g.away_team_id === tid)
+            return game && !isGameLocked(game.id)
+          })
+          .slice(0, slots)
+
+        const pickInserts = teamsToInsert.map((teamId, index) => {
           const game = games.find((g) => g.home_team_id === teamId || g.away_team_id === teamId)
           return {
             league_id: Number(leagueId),
             user_id: userId,
-      season_id: effectiveSeasonId,
+            season_id: effectiveSeasonId,
             week: currentWeek,
             game_id: game?.id != null ? Number(game.id) : null,
             picked_team_id: Number(teamId),
@@ -292,9 +350,21 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
           }
         })
 
-        const { error: picksError } = await supabase.from("picks").insert(pickInserts)
+        if (pickInserts.length > 0) {
+          const { error: picksError } = await supabase.from("picks").insert(pickInserts)
+          if (picksError) throw picksError
+        }
+      }
 
-        if (picksError) throw picksError
+      // If there was an existing bye and the user turned bye OFF this submission, decrement byes_used
+      if (existingBye && !usingBye) {
+        const newByes = Math.max(0, byesUsed - 1)
+        const { error: decError } = await supabase
+          .from("league_member_state")
+          .update({ byes_used: newByes })
+          .eq("league_id", leagueId)
+          .eq("user_id", userId)
+        if (decError) throw decError
       }
 
       // Refresh data
@@ -386,6 +456,21 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
             byesUsed={byesUsed}
             onByeWeek={handleByeWeek}
             currentWeek={currentWeek}
+            lockedPicks={(picks || [])
+              .filter((p) => !p.is_bye && isGameLocked(p.game_id))
+              .map((p) => {
+                const g = games.find(
+                  (gm) => gm.home_team_id === normalizeId(p.picked_team_id) || gm.away_team_id === normalizeId(p.picked_team_id),
+                )
+                const isHome = g?.home_team_id === normalizeId(p.picked_team_id)
+                return {
+                  team_id: normalizeId(p.picked_team_id),
+                  name: isHome ? g?.home_team || "Team" : g?.away_team || "Team",
+                  code: isHome ? g?.home_code || "" : g?.away_code || "",
+                  points: isHome ? g?.home_points || 0 : g?.away_points || 0,
+                }
+              })}
+            remainingSlots={Math.max(0, 2 - getLockedPicks().length - (hasExistingByeThisWeek() ? 1 : 0))}
           />
 
           {error && (

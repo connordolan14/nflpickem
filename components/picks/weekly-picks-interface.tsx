@@ -60,6 +60,7 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
   const [error, setError] = useState("")
   const [showGames, setShowGames] = useState(true)
   const [seasonId, setSeasonId] = useState<number | null>(null)
+  const [seasonYear, setSeasonYear] = useState<number | null>(null)
   const [seasonLoading, setSeasonLoading] = useState(true)
 
   const normalizeId = (v: any): string => (v == null ? "" : String(v))
@@ -68,15 +69,34 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
     let cancelled = false
     async function run() {
       try {
-        if (seasonId == null) {
-          const s = await fetchCurrentSeasonId(supabase)
-          if (!cancelled) setSeasonId(s)
+        let sid = seasonId
+        let syear = seasonYear
+
+        if (sid == null) {
+          sid = await fetchCurrentSeasonId(supabase)
+          if (!cancelled) setSeasonId(sid)
         }
-        await fetchWeekData()
+        if (syear == null && sid != null) {
+          const { data: srow } = await supabase.from('seasons').select('year').eq('id', sid).single()
+          if (srow?.year && !cancelled) {
+            syear = srow.year as number
+            setSeasonYear(syear)
+          }
+        }
+
+        // Fetch using the computed sid/syear to avoid state update race on first load
+        if (sid != null) {
+          await fetchWeekData({ seasonIdOverride: sid, seasonYearOverride: syear })
+        }
       } catch (err) {
         console.error('Season init error', err)
+        // Do not surface an error yet; page will retry when user changes week
       } finally {
-        if (!cancelled) setSeasonLoading(false)
+        if (!cancelled) {
+          setSeasonLoading(false)
+          // Ensure we don't stay stuck on the loader if we couldn't fetch
+          setLoading(false)
+        }
       }
     }
     run()
@@ -84,7 +104,22 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leagueId, userId, currentWeek])
 
-  const fetchWeekData = async () => {
+  // Also react to seasonId/seasonYear being filled later to trigger a fetch without week change
+  useEffect(() => {
+    if (seasonId != null && !loading && !seasonLoading) {
+      // fire and forget; effect above also handles
+      fetchWeekData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seasonId, seasonYear])
+
+  const fetchWeekData = async (opts?: { seasonIdOverride?: number | null; seasonYearOverride?: number | null }) => {
+    const sid = opts?.seasonIdOverride ?? seasonId
+    const syear = opts?.seasonYearOverride ?? seasonYear
+    if (sid == null) {
+      // Season not ready yet; defer without raising error so first render isn't noisy
+      return
+    }
     setLoading(true)
     setError("")
 
@@ -100,8 +135,14 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         .eq("week", currentWeek)
         .order("kickoff_ts")
 
-      if (seasonId != null) {
-        gamesQuery = gamesQuery.eq("season_id", seasonId)
+      if (sid != null) {
+        gamesQuery = gamesQuery.eq("season_id", sid)
+      }
+
+      // Exclude preseason: anything before Sep 1 of the season year (only if year known)
+      if (syear != null) {
+        const sep1 = new Date(Date.UTC(syear, 8, 1, 0, 0, 0)) // month is 0-indexed; 8 = Sep
+        gamesQuery = gamesQuery.gte('kickoff_ts', sep1.toISOString())
       }
 
       const { data: gamesData, error: gamesError } = await gamesQuery
@@ -135,8 +176,8 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         .eq("league_id", leagueId)
         .eq("user_id", userId)
         .eq("week", currentWeek)
-      if (seasonId != null) {
-        picksQuery = picksQuery.eq("season_id", seasonId)
+      if (sid != null) {
+        picksQuery = picksQuery.eq("season_id", sid)
       }
       const { data: picksData, error: picksError } = await picksQuery
 
@@ -160,8 +201,8 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
         .eq("league_id", leagueId)
         .eq("user_id", userId)
         .neq("week", currentWeek)
-      if (seasonId != null) {
-        usedTeamsQuery = usedTeamsQuery.eq("season_id", seasonId)
+      if (sid != null) {
+        usedTeamsQuery = usedTeamsQuery.eq("season_id", sid)
       }
       const { data: usedTeamsData, error: usedError } = await usedTeamsQuery
 
@@ -197,7 +238,7 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
     if (usingBye) return
     if (isTeamUsed(teamId) || isGameLocked(gameId)) return
 
-    const slots = unlockedSlotsRemaining()
+  const slots = pickSlotsRemaining()
     if (slots <= 0) return
 
     setSelectedTeams((prev) => {
@@ -218,10 +259,10 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
 
   const handleByeWeek = () => {
     if (byesUsed >= 4) return
-    const slots = unlockedSlotsRemaining()
+  const capacity = editableCapacity()
     const alreadyBye = hasExistingByeThisWeek()
-    // Can't enable bye if no slots left or a bye already exists this week
-    if (!usingBye && (slots <= 0 || alreadyBye)) return
+  // Can't enable bye if no capacity left or a bye already exists this week
+  if (!usingBye && (capacity <= 0 || alreadyBye)) return
 
     setUsingBye(!usingBye)
     if (!usingBye) {
@@ -249,16 +290,30 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
 
   const hasExistingByeThisWeek = () => picks.some((p) => p.is_bye)
 
-  const unlockedSlotsRemaining = () => {
+  const editableCapacity = () => {
     const lockedCount = getLockedPicks().length
     const existingBye = hasExistingByeThisWeek() ? 1 : 0
     return Math.max(0, 2 - lockedCount - existingBye)
   }
 
+  const pickSlotsRemaining = () => {
+    const capacity = editableCapacity()
+    // Count available non-used team choices among unlocked games
+    const availableTeams = new Set<string>()
+    for (const g of games) {
+      if (!isGameLocked(g.id)) {
+        if (!isTeamUsed(g.home_team_id)) availableTeams.add(g.home_team_id)
+        if (!isTeamUsed(g.away_team_id)) availableTeams.add(g.away_team_id)
+      }
+    }
+    return Math.max(0, Math.min(capacity, availableTeams.size))
+  }
+
   const canSubmit = () => {
-    const slots = unlockedSlotsRemaining()
-    const canAddBye = usingBye && !hasExistingByeThisWeek() && slots > 0
-    const canAddPicks = selectedTeams.length > 0 && slots > 0
+  const capacity = editableCapacity()
+  const slots = pickSlotsRemaining()
+  const canAddBye = usingBye && !hasExistingByeThisWeek() && capacity > 0
+  const canAddPicks = Math.min(selectedTeams.length, slots) > 0
     // Submit only if there is at least one change possible
     return canAddBye || canAddPicks
   }
@@ -312,7 +367,15 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
           is_bye: true,
           source: "auto_bye",
         })
-        if (byeError) throw byeError
+        if (byeError) {
+          console.error("Bye insert failed:", byeError)
+          setError(
+            byeError.message?.includes("null")
+              ? "Database is blocking BYE rows (game_id/picked_team_id NOT NULL). Apply the provided migration to allow byes."
+              : `Failed to use bye: ${byeError.message || "Unknown error"}`,
+          )
+          throw byeError
+        }
 
         // increment byes_used only when adding a new bye
         const { error: stateError } = await supabase
@@ -336,8 +399,23 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
           })
           .slice(0, slots)
 
-        const pickInserts = teamsToInsert.map((teamId, index) => {
+        // Respect existing locked slot numbers when assigning new ones
+        const usedSlotNums = new Set<number>(
+          lockedPicks.map((p) => (typeof p.slot_number === 'number' ? p.slot_number : null)).filter(Boolean) as number[],
+        )
+        const nextSlot = () => {
+          for (const s of [1, 2]) {
+            if (!usedSlotNums.has(s)) {
+              usedSlotNums.add(s)
+              return s
+            }
+          }
+          return null
+        }
+
+        const pickInserts = teamsToInsert.map((teamId) => {
           const game = games.find((g) => g.home_team_id === teamId || g.away_team_id === teamId)
+          const slotNum = nextSlot()
           return {
             league_id: Number(leagueId),
             user_id: userId,
@@ -345,10 +423,10 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
             week: currentWeek,
             game_id: game?.id != null ? Number(game.id) : null,
             picked_team_id: Number(teamId),
-            slot_number: index + 1,
+            slot_number: slotNum,
             is_bye: false,
           }
-        })
+        }).filter((row) => row.slot_number != null)
 
         if (pickInserts.length > 0) {
           const { error: picksError } = await supabase.from("picks").insert(pickInserts)
@@ -470,8 +548,17 @@ export function WeeklyPicksInterface({ leagueId, userId }: WeeklyPicksInterfaceP
                   points: isHome ? g?.home_points || 0 : g?.away_points || 0,
                 }
               })}
-            remainingSlots={Math.max(0, 2 - getLockedPicks().length - (hasExistingByeThisWeek() ? 1 : 0))}
+            remainingSlots={pickSlotsRemaining()}
           />
+
+      {pickSlotsRemaining() === 0 && !hasExistingByeThisWeek() && (
+            <Alert>
+              <AlertDescription>
+        All games for Week {currentWeek} have started or finished. You can no longer make team picks this week.
+        If you still have bye weeks remaining, you can use one instead.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {error && (
             <Alert variant="destructive">

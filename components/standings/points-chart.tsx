@@ -1,7 +1,9 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import { Line, LineChart, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { supabase } from "@/lib/supabase"
 
 interface StandingData {
   user_id: string
@@ -15,23 +17,75 @@ interface StandingData {
 
 interface PointsChartProps {
   standings: StandingData[]
+  leagueId: string
 }
 
-export function PointsChart({ standings }: PointsChartProps) {
-  // Mock weekly progression data (in real app, would fetch from scores table)
-  const weeks = Array.from({ length: 8 }, (_, i) => i + 1)
+export function PointsChart({ standings, leagueId }: PointsChartProps) {
+  const topPlayers = useMemo(() => standings.slice(0, 5), [standings])
+  const [chartData, setChartData] = useState<any[]>([])
 
-  const chartData = weeks.map((week) => {
-    const weekData: any = { week: `Week ${week}` }
+  useEffect(() => {
+    if (!topPlayers.length) {
+      setChartData([])
+      return
+    }
 
-    // Add top 5 players to chart
-    standings.slice(0, 5).forEach((standing) => {
-      // Mock cumulative points progression
-      weekData[standing.display_name] = Math.floor((standing.total_points / 8) * week + Math.random() * 10 - 5)
-    })
+    async function fetchWeeklyScores() {
+      const userIds = topPlayers.map((s) => s.user_id)
+      const { data, error } = await supabase
+        .from("scores")
+        .select("user_id, week, points")
+        .eq("league_id", leagueId)
+        .in("user_id", userIds)
+        .order("week", { ascending: true })
 
-    return weekData
-  })
+      if (error) {
+        console.error("Error loading scores for chart:", error)
+        setChartData([])
+        return
+      }
+
+      const byUser: Record<string, { week: number; points: number }[]> = {}
+      for (const row of data || []) {
+        const uid = row.user_id as string
+        if (!byUser[uid]) byUser[uid] = []
+        byUser[uid].push({ week: row.week as number, points: row.points as number })
+      }
+
+      // Determine max week present in data (fallback 18)
+      const maxWeek = Math.max(18, ...(data || []).map((r) => (r.week as number) || 0))
+
+      // Build cumulative series per user
+      const cumulativeByUser: Record<string, number[]> = {}
+      for (const p of topPlayers) {
+        const series = new Array(maxWeek).fill(0)
+        let running = 0
+        const rows = (byUser[p.user_id] || []).sort((a, b) => a.week - b.week)
+        let idx = 0
+        for (let w = 1; w <= maxWeek; w++) {
+          while (idx < rows.length && rows[idx].week === w) {
+            running += rows[idx].points || 0
+            idx++
+          }
+          series[w - 1] = running
+        }
+        cumulativeByUser[p.user_id] = series
+      }
+
+      const rows = Array.from({ length: Math.min(maxWeek, 18) }, (_, i) => {
+        const w = i + 1
+        const obj: any = { week: `Week ${w}` }
+        for (const p of topPlayers) {
+          obj[p.user_id] = cumulativeByUser[p.user_id]?.[i] ?? 0
+        }
+        return obj
+      })
+
+      setChartData(rows)
+    }
+
+    fetchWeeklyScores()
+  }, [leagueId, topPlayers])
 
   const colors = [
     "hsl(var(--chart-1))",
@@ -43,10 +97,10 @@ export function PointsChart({ standings }: PointsChartProps) {
 
   return (
     <ChartContainer
-      config={standings.slice(0, 5).reduce(
+      config={topPlayers.reduce(
         (acc, standing, index) => ({
           ...acc,
-          [standing.display_name]: {
+          [standing.user_id]: {
             label: standing.display_name,
             color: colors[index] || "hsl(var(--chart-1))",
           },
@@ -62,11 +116,11 @@ export function PointsChart({ standings }: PointsChartProps) {
           <YAxis />
           <ChartTooltip content={<ChartTooltipContent />} />
           <Legend />
-          {standings.slice(0, 5).map((standing, index) => (
+          {topPlayers.map((standing, index) => (
             <Line
               key={standing.user_id}
               type="monotone"
-              dataKey={standing.display_name}
+              dataKey={standing.user_id}
               stroke={colors[index]}
               strokeWidth={2}
               dot={{ r: 4 }}

@@ -48,7 +48,6 @@ export function WeeklyPicks({ userId }: WeeklyPicksProps) {
           .select("league_id")
           .eq("user_id", userId)
           .eq("week", currentWeek)
-
         if (picksError) throw picksError
 
         // Create pick status for each league

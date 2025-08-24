@@ -1,0 +1,8 @@
+[functions]
+directory = "functions"
+
+[functions.cron]
+# Run every minute; the function decides what to execute each tick
+id       = "master-cron-handler"
+schedule = "* * * * *"
+path     = "master-cron-handler"

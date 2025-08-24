@@ -62,7 +62,15 @@ export function MemberManagement({ leagueId, league, onLeagueUpdate }: MemberMan
         .order("created_at")
 
   if (error) throw error
-      setMembers(data || [])
+      const normalized = (data || []).map((row: any) => ({
+        user_id: row.user_id,
+        role: row.role,
+        created_at: row.created_at,
+        profiles: Array.isArray(row.profiles)
+          ? (row.profiles[0] || { display_name: "User", avatar_url: null })
+          : (row.profiles || { display_name: "User", avatar_url: null }),
+      })) as MemberData[]
+      setMembers(normalized)
     } catch (error) {
   const msg = (error as any)?.message || JSON.stringify(error)
   console.error("Error fetching members:", msg)
@@ -113,22 +121,35 @@ export function MemberManagement({ leagueId, league, onLeagueUpdate }: MemberMan
 
   const transferOwnership = async (newOwnerId: string) => {
     try {
-      const { error } = await supabase.from("leagues").update({ owner_id: newOwnerId }).eq("id", leagueId)
+      // Prefer secure RPC that performs checks and transactions under security definer
+      const { error: rpcError } = await supabase.rpc("transfer_league_ownership", {
+        p_league_id: Number(leagueId),
+        p_new_owner_id: newOwnerId,
+      })
 
-      if (error) throw error
+      if (rpcError) {
+        // Fallback (may fail under strict RLS): try guarded, stepwise updates
+        const { error: updError } = await supabase
+          .from("leagues")
+          .update({ owner_id: newOwnerId })
+          .eq("id", leagueId)
+          .eq("owner_id", league.owner_id) // extra guard for RLS
 
-      // Update roles
-      await supabase
-        .from("league_members")
-        .update({ role: "member" })
-        .eq("league_id", leagueId)
-        .eq("user_id", league.owner_id)
+        if (updError) throw updError
 
-      await supabase
-        .from("league_members")
-        .update({ role: "admin" })
-        .eq("league_id", leagueId)
-        .eq("user_id", newOwnerId)
+        // Best-effort role updates (may be blocked after ownership changes)
+        await supabase
+          .from("league_members")
+          .update({ role: "member" })
+          .eq("league_id", leagueId)
+          .eq("user_id", league.owner_id)
+
+        await supabase
+          .from("league_members")
+          .update({ role: "admin" })
+          .eq("league_id", leagueId)
+          .eq("user_id", newOwnerId)
+      }
 
       onLeagueUpdate()
       await fetchMembers()
@@ -142,7 +163,11 @@ export function MemberManagement({ leagueId, league, onLeagueUpdate }: MemberMan
     try {
       const newCode = Math.random().toString(36).substring(2, 8).toUpperCase()
 
-      const { error } = await supabase.from("leagues").update({ join_code: newCode }).eq("id", leagueId)
+      const { error } = await supabase
+        .from("leagues")
+        .update({ join_code: newCode })
+        .eq("id", leagueId)
+        .eq("owner_id", league.owner_id)
 
       if (error) throw error
 
@@ -163,7 +188,7 @@ export function MemberManagement({ leagueId, league, onLeagueUpdate }: MemberMan
     return (
       <div className="space-y-4">
         <div className="animate-pulse">
-          <div className="h-6 bg-muted rounded w-1/4 mb-4"></div>
+          <div className="h-6 bg-muted rounded w-1/4 mb-4"></div>n
           {[...Array(3)].map((_, i) => (
             <div key={i} className="h-16 bg-muted rounded"></div>
           ))}

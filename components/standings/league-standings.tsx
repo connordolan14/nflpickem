@@ -226,7 +226,7 @@ export function LeagueStandings({ leagueId, userId }: LeagueStandingsProps) {
           <CardTitle>Points Progression</CardTitle>
         </CardHeader>
         <CardContent>
-          <PointsChart standings={standings} />
+          <PointsChart standings={standings} leagueId={leagueId} />
         </CardContent>
       </Card>
     </div>

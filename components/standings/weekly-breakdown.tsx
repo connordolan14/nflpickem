@@ -34,7 +34,7 @@ export function WeeklyBreakdown({ userId, leagueId }: WeeklyBreakdownProps) {
 
         if (scoresError) throw scoresError
 
-        // Fetch picks to determine bye weeks
+  // Fetch picks to determine bye weeks and number of non-bye picks
         const { data: picksData, error: picksError } = await supabase
           .from("picks")
           .select("week, is_bye")
@@ -50,11 +50,12 @@ export function WeeklyBreakdown({ userId, leagueId }: WeeklyBreakdownProps) {
           const score = scoresData?.find((s) => s.week === week)
           const picks = picksData?.filter((p) => p.week === week) || []
           const hasBye = picks.some((p) => p.is_bye)
+          const nonByeCount = picks.filter((p) => !p.is_bye).length
 
           weeklyData.push({
             week,
             points: score?.points || 0,
-            picks_made: picks.length,
+            picks_made: nonByeCount,
             is_bye: hasBye,
           })
         }
@@ -62,14 +63,14 @@ export function WeeklyBreakdown({ userId, leagueId }: WeeklyBreakdownProps) {
         setWeeklyScores(weeklyData)
       } catch (error) {
         console.error("Error fetching weekly breakdown:", error)
-        // Mock data for demonstration
-        const mockData: WeeklyScore[] = Array.from({ length: 18 }, (_, i) => ({
+        // On error, show empty accurate defaults (no random mock values)
+        const empty: WeeklyScore[] = Array.from({ length: 18 }, (_, i) => ({
           week: i + 1,
-          points: i < 8 ? Math.floor(Math.random() * 20) + 5 : 0,
-          picks_made: i < 8 ? 2 : 0,
-          is_bye: i === 3 || i === 7, // Mock bye weeks
+          points: 0,
+          picks_made: 0,
+          is_bye: false,
         }))
-        setWeeklyScores(mockData)
+        setWeeklyScores(empty)
       } finally {
         setLoading(false)
       }

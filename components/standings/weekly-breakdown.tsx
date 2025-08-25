@@ -34,27 +34,63 @@ export function WeeklyBreakdown({ userId, leagueId }: WeeklyBreakdownProps) {
 
         if (scoresError) throw scoresError
 
-  // Fetch picks to determine bye weeks and number of non-bye picks
+        // Fetch picks to determine bye weeks and number of non-bye picks,
+        // and to compute points live if scores are missing for a week
         const { data: picksData, error: picksError } = await supabase
           .from("picks")
-          .select("week, is_bye")
+          .select(`
+            week,
+            is_bye,
+            picked_team_id,
+            games(winner_team_id, status),
+            teams:picked_team_id(points_value)
+          `)
           .eq("league_id", leagueId)
           .eq("user_id", userId)
           .order("week")
 
         if (picksError) throw picksError
 
+        // League overrides for team points
+        const { data: ltvData, error: ltvError } = await supabase
+          .from("league_team_values")
+          .select("team_id, points_value")
+          .eq("league_id", leagueId)
+        if (ltvError) throw ltvError
+        const ltvMap = new Map<string, number>()
+        ;(ltvData || []).forEach((r: any) => ltvMap.set(String(r.team_id), r.points_value as number))
+
         // Combine data for weeks 1-18
         const weeklyData: WeeklyScore[] = []
         for (let week = 1; week <= 18; week++) {
           const score = scoresData?.find((s) => s.week === week)
-          const picks = picksData?.filter((p) => p.week === week) || []
-          const hasBye = picks.some((p) => p.is_bye)
-          const nonByeCount = picks.filter((p) => !p.is_bye).length
+          const picks = (picksData || []).filter((p: any) => p.week === week)
+          const hasBye = picks.some((p: any) => p.is_bye)
+          const nonByeCount = picks.filter((p: any) => !p.is_bye).length
+
+          // If no score row, compute live from picks+games
+          let livePoints = 0
+          if (!score) {
+            for (const p of picks) {
+              if (p.is_bye) continue
+              const game = Array.isArray(p.games) ? p.games[0] : p.games
+              const team = Array.isArray(p.teams) ? p.teams[0] : p.teams
+              const winnerId = game?.winner_team_id
+              const isFinal = (game?.status === "final") && winnerId != null
+              if (!isFinal) continue
+              const pickedId = p.picked_team_id
+              const win = String(pickedId) === String(winnerId)
+              if (win) {
+                const override = pickedId ? ltvMap.get(String(pickedId)) : undefined
+                const baseVal = team?.points_value ?? 0
+                livePoints += override ?? baseVal ?? 0
+              }
+            }
+          }
 
           weeklyData.push({
             week,
-            points: score?.points || 0,
+            points: score?.points || livePoints || 0,
             picks_made: nonByeCount,
             is_bye: hasBye,
           })

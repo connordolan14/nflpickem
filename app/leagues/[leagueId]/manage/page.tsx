@@ -2,20 +2,18 @@
 
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, use as unwrap } from "react"
 import { LeagueManagement } from "@/components/management/league-management"
 import { Header } from "@/components/layout/header"
 import { supabase } from "@/lib/supabase"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Shield } from "lucide-react"
 
-interface ManagePageProps {
-  params: {
-    leagueId: string
-  }
-}
+interface ManagePageProps { params: { leagueId: string } | Promise<{ leagueId: string }> }
 
 export default function ManagePage({ params }: ManagePageProps) {
+  // @ts-ignore unwrap if promise
+  const { leagueId } = typeof (params as any).then === 'function' ? unwrap(params as Promise<{leagueId:string}>) : (params as {leagueId:string})
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null)
@@ -30,7 +28,7 @@ export default function ManagePage({ params }: ManagePageProps) {
     if (user) {
       checkAuthorization()
     }
-  }, [user, authLoading, router, params.leagueId])
+  }, [user, authLoading, router, leagueId])
 
   const checkAuthorization = async () => {
     try {
@@ -38,7 +36,7 @@ export default function ManagePage({ params }: ManagePageProps) {
       const { data: leagueData, error: leagueError } = await supabase
         .from("leagues")
         .select("owner_id")
-        .eq("id", params.leagueId)
+  .eq("id", leagueId)
         .single()
 
       if (leagueError) throw leagueError
@@ -53,7 +51,7 @@ export default function ManagePage({ params }: ManagePageProps) {
       const { data: memberData, error: memberError } = await supabase
         .from("league_members")
         .select("role")
-        .eq("league_id", params.leagueId)
+  .eq("league_id", leagueId)
         .eq("user_id", user?.id)
         .single()
 
@@ -111,7 +109,7 @@ export default function ManagePage({ params }: ManagePageProps) {
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-accent/10">
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <LeagueManagement leagueId={params.leagueId} userId={user.id} />
+  <LeagueManagement leagueId={leagueId} userId={user.id} />
       </main>
     </div>
   )

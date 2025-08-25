@@ -2,17 +2,19 @@
 
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, use as unwrap } from "react"
 import { WeeklyPicksInterface } from "@/components/picks/weekly-picks-interface"
 import { Header } from "@/components/layout/header"
 
 interface PicksPageProps {
-  params: {
-    leagueId: string
-  }
+  // In latest Next.js, params may be delivered as a Promise to client components
+  params: { leagueId: string } | Promise<{ leagueId: string }>
 }
 
 export default function PicksPage({ params }: PicksPageProps) {
+  // Unwrap params if it's a promise (forward compatible) – React.use() experimental alias imported as unwrap
+  // @ts-ignore – unwrap handles both object and promise at runtime
+  const { leagueId } = typeof (params as any).then === 'function' ? unwrap(params as Promise<{leagueId:string}>) : (params as {leagueId:string})
   const { user, loading } = useAuth()
   const router = useRouter()
 
@@ -46,7 +48,7 @@ export default function PicksPage({ params }: PicksPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-accent/10">
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <WeeklyPicksInterface leagueId={params.leagueId} userId={user.id} />
+  <WeeklyPicksInterface leagueId={leagueId} userId={user.id} />
       </main>
     </div>
   )

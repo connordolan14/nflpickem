@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { Fragment } from "react";
 
 import { useState } from "react";
 import {
@@ -138,14 +139,17 @@ export function StandingsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedStandings.map((standing) => {
+            {sortedStandings.map((standing, idx) => {
+              // Compose a unique, stable-ish key. Prefer user_id; fall back to index suffix to avoid collisions.
+              const rowKey = standing.user_id
+                ? `${standing.user_id}::${idx}`
+                : `row-${idx}`;
               const isCurrentUser = standing.user_id === currentUserId;
               const isExpanded = expandedRows.has(standing.user_id);
 
               return (
-                <>
+                <Fragment key={rowKey}>
                   <TableRow
-                    key={standing.user_id}
                     className={`
                       ${
                         isCurrentUser
@@ -222,7 +226,7 @@ export function StandingsTable({
                   </TableRow>
 
                   {isExpanded && (
-                    <TableRow>
+                    <TableRow key={`${rowKey}-details`}>
                       <TableCell colSpan={7} className="p-0">
                         <WeeklyBreakdown
                           userId={standing.user_id}
@@ -231,7 +235,7 @@ export function StandingsTable({
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </TableBody>

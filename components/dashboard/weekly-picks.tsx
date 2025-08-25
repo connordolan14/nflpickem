@@ -18,6 +18,7 @@ interface PickStatus {
   picks_made: number;
   picks_needed: number;
   deadline: string;
+  name: string;
 }
 
 export function WeeklyPicks({ userId }: WeeklyPicksProps) {
@@ -50,7 +51,6 @@ export function WeeklyPicks({ userId }: WeeklyPicksProps) {
           .select("league_id")
           .eq("user_id", userId)
           .eq("week", currentWeek);
-
         if (picksError) throw picksError;
 
         // Create pick status for each league

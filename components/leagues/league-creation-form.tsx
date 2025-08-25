@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
+import { fetchCurrentSeasonId } from "@/lib/season";
 import { Loader2, Users, Lock, Globe, Settings } from "lucide-react";
 import { TeamPointsCustomizer } from "./team-points-customizer";
 
@@ -35,6 +36,9 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
   const [teams, setTeams] = useState<NFLTeam[]>([]);
   const [error, setError] = useState("");
   const [step, setStep] = useState(1);
+  const [seasonId, setSeasonId] = useState<number | null>(null);
+  const [seasonLoading, setSeasonLoading] = useState(true);
+  const [seasonError, setSeasonError] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -46,29 +50,42 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
   });
 
   useEffect(() => {
-    async function fetchTeams() {
+    let cancelled = false;
+    async function init() {
       try {
-        const { data, error } = await supabase
-          .from("teams")
-          .select("id, nfl_team_code, display_name, logo, points_value")
-          .order("display_name");
+        const [teamsRes, season] = await Promise.all([
+          supabase
+            .from("teams")
+            .select("id, nfl_team_code, display_name, points_value")
+            .order("display_name"),
+          fetchCurrentSeasonId(supabase),
+        ]);
 
-        if (error) throw error;
-        setTeams(data || []);
-        console.log("teams", data);
-        // Initialize custom team values with default values
+        if (cancelled) return;
+        if (teamsRes.error) throw teamsRes.error;
+        const data = teamsRes.data || [];
+        setTeams(data);
         const defaultValues: Record<string, number> = {};
-        data?.forEach((team) => {
+        data.forEach((team) => {
           defaultValues[team.id] = team.points_value;
         });
         setFormData((prev) => ({ ...prev, customTeamValues: defaultValues }));
-      } catch (error) {
-        console.error("Error fetching teams:", error);
-        setError("Failed to load NFL teams. Please try again.");
+        setSeasonId(season);
+      } catch (err: any) {
+        if (cancelled) return;
+        console.error("Initialization error:", err);
+        setSeasonError(err.message || "Failed to resolve current season");
+        setError(
+          (prev) => prev || "Failed to load NFL teams. Please try again."
+        );
+      } finally {
+        if (!cancelled) setSeasonLoading(false);
       }
     }
-
-    fetchTeams();
+    init();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const generateJoinCode = () => {
@@ -110,6 +127,15 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
 
     try {
       // Create league
+      if (seasonLoading) {
+        setError("Season still loading. Please wait.");
+        return;
+      }
+      if (seasonId == null) {
+        setError(seasonError || "Season unavailable; cannot create league.");
+        return;
+      }
+
       const { data: league, error: leagueError } = await supabase
         .from("leagues")
         .insert({
@@ -117,7 +143,7 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
           description: formData.description.trim() || null,
           visibility: formData.visibility,
           owner_id: userId,
-          season_id: 1, // This would be the current season ID
+          season_id: seasonId,
           join_code:
             formData.visibility === "private" ? generateJoinCode() : null,
           rules_json: {
@@ -192,6 +218,18 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {seasonLoading && (
+        <Alert>
+          <AlertDescription>Loading current season...</AlertDescription>
+        </Alert>
+      )}
+      {!seasonLoading && seasonId == null && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {seasonError || "Unable to determine current season."}
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Step 1: Basic Information */}
       <Card className="backdrop-blur-sm bg-card/80 border-border/50">
         <CardHeader>

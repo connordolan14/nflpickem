@@ -35,7 +35,7 @@ export function Header() {
                   href="/leagues"
                   className="text-foreground hover:text-primary transition-colors"
                 >
-                  My Leagues
+                  Leagues
                 </Link>
                 <Link
                   href="/admin"
@@ -102,7 +102,7 @@ export function Header() {
                     href="/leagues"
                     className="text-foreground hover:text-primary transition-colors"
                   >
-                    My Leagues
+                    Leagues
                   </Link>
                   <Link
                     href="/admin"

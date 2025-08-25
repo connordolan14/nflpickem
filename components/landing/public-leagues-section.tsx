@@ -10,6 +10,7 @@ import Link from "next/link"
 
 interface LeagueWithMemberCount extends League {
   member_count: number
+  seasons?: { year: number } | { year: number }[]
 }
 
 export function PublicLeaguesSection() {
@@ -19,11 +20,12 @@ export function PublicLeaguesSection() {
   useEffect(() => {
     async function fetchPublicLeagues() {
       try {
-        const { data, error } = await supabase
+    const { data, error } = await supabase
           .from("leagues")
           .select(`
             *,
-            league_members(count)
+      league_members(count),
+      seasons(year)
           `)
           .eq("visibility", "public")
           .limit(3)
@@ -33,7 +35,7 @@ export function PublicLeaguesSection() {
         const leaguesWithCount =
           data?.map((league) => ({
             ...league,
-            member_count: league.league_members?.[0]?.count || 0,
+            member_count: (league as any).league_members?.[0]?.count || 0,
           })) || []
 
         setLeagues(leaguesWithCount)
@@ -94,12 +96,16 @@ export function PublicLeaguesSection() {
                     </div>
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4 mr-1" />
-                      2024 Season
+                      {(() => {
+                        const seasonsRel: any = (league as any).seasons
+                        const seasonYear = Array.isArray(seasonsRel) ? seasonsRel[0]?.year : seasonsRel?.year
+                        return seasonYear ? `${seasonYear} Season` : "Season"
+                      })()}
                     </div>
                   </div>
                   <Button asChild className="w-full bg-transparent" variant="outline">
-                    <Link href={`/leagues/${league.id}/join`}>
-                      Join League
+                    <Link href={`/leagues/${league.id}`}>
+                      View League
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>

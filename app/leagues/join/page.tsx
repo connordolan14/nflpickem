@@ -32,9 +32,7 @@ export default function JoinLeaguePage() {
       // Find league by join code
       const { data: league, error: leagueError } = await supabase
         .from("leagues")
-        .select("id, name, visibility")
-        .eq("join_code", joinCode.trim().toUpperCase())
-        .single()
+        .select("id, name, visibility").eq("join_code", joinCode.trim().toUpperCase()).single()
 
       if (leagueError || !league) {
         setError("Invalid join code. Please check and try again.")

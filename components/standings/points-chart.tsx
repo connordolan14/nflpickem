@@ -47,65 +47,77 @@ export function PointsChart({ standings, leagueId }: PointsChartProps) {
 
   let scoreRows = data || []
 
-      // Fallback: if scores table is empty (e.g., cron/RPC hasn't run), compute from picks+games live
-  if (!scoreRows.length) {
-        // Load picks for these users with their games
-        const { data: picks, error: picksErr } = await supabase
-          .from("picks")
-          .select(`user_id, week, is_bye, picked_team_id,
-                   games(winner_team_id, status),
-                   teams:picked_team_id(points_value)`)
-          .eq("league_id", leagueId)
-          .in("user_id", userIds)
-        if (picksErr) {
-          console.error("Fallback picks error:", picksErr)
-        } else {
-          // League overrides for team points
-          const { data: ltv, error: ltvErr } = await supabase
-            .from("league_team_values")
-            .select("team_id, points_value")
-            .eq("league_id", leagueId)
-          if (ltvErr) {
-            console.error("Fallback LTV error:", ltvErr)
-          }
-          const ltvMap = new Map<string, number>()
-          ;(ltv || []).forEach((r: any) => ltvMap.set(String(r.team_id), r.points_value as number))
-
-          const agg: Record<string, Record<number, number>> = {}
-          for (const p of picks || []) {
-            const uid = p.user_id as string
-            const wk = p.week as number
-            if (!agg[uid]) agg[uid] = {}
-            if (!agg[uid][wk]) agg[uid][wk] = 0
-            if (p.is_bye) continue
-            const game = Array.isArray(p.games) ? p.games[0] : p.games
-            const team = Array.isArray(p.teams) ? p.teams[0] : p.teams
-            const winnerId = game?.winner_team_id
-            const isFinal = (game?.status === "final") || (winnerId != null)
-            if (!isFinal) continue
-            const pickedId = p.picked_team_id
-            const win = String(pickedId) === String(winnerId)
-            if (win) {
-              const override = pickedId ? ltvMap.get(String(pickedId)) : undefined
-              const baseVal = team?.points_value ?? 0
-              agg[uid][wk] += override ?? baseVal ?? 0
-            }
-          }
-      scoreRows = Object.entries(agg).flatMap(([uid, byWeek]) =>
-            Object.entries(byWeek).map(([wk, pts]) => ({ user_id: uid, week: Number(wk), points: pts }))
-          )
-        }
+      // Merge: compute live weekly points from picks+games, then override with persisted scores when present
+      // This ensures partial weeks (e.g., Week 3 present in picks but not yet in scores) still show up.
+      // Load picks for these users with their games
+      const { data: picks, error: picksErr } = await supabase
+        .from("picks")
+        .select(`user_id, week, is_bye, picked_team_id,
+                 games(winner_team_id, status),
+                 teams:picked_team_id(points_value)`)
+        .eq("league_id", leagueId)
+        .in("user_id", userIds)
+      if (picksErr) {
+        console.error("Picks query error for chart merge:", picksErr)
       }
 
+      // League overrides for team points
+      const { data: ltv, error: ltvErr } = await supabase
+        .from("league_team_values")
+        .select("team_id, points_value")
+        .eq("league_id", leagueId)
+      if (ltvErr) {
+        console.error("LTV query error for chart merge:", ltvErr)
+      }
+      const ltvMap = new Map<string, number>()
+      ;(ltv || []).forEach((r: any) => ltvMap.set(String(r.team_id), r.points_value as number))
+
+      // Compute live points per user/week from final games only
+      const liveMap = new Map<string, number>() // key: `${uid}:${wk}` -> points
+      for (const p of picks || []) {
+        if (p.is_bye) continue
+        const uid = String(p.user_id)
+        const wk = Number(p.week)
+        const game = Array.isArray(p.games) ? p.games[0] : p.games
+        const team = Array.isArray(p.teams) ? p.teams[0] : p.teams
+        const winnerId = game?.winner_team_id
+        const isFinal = (game?.status === "final") || (winnerId != null)
+        if (!isFinal) continue
+        const pickedId = p.picked_team_id
+        const win = String(pickedId) === String(winnerId)
+        if (!win) continue
+        const override = pickedId ? ltvMap.get(String(pickedId)) : undefined
+        const baseVal = team?.points_value ?? 0
+        const key = `${uid}:${wk}`
+        const prev = liveMap.get(key) ?? 0
+        liveMap.set(key, prev + (override ?? baseVal ?? 0))
+      }
+
+      // Build merged map; prefer persisted scores if a row exists for that user/week
+      const merged = new Map<string, { user_id: string; week: number; points: number }>()
+      // Start with live
+      for (const [key, pts] of liveMap.entries()) {
+        const [uid, wkStr] = key.split(":" )
+        merged.set(key, { user_id: uid, week: Number(wkStr), points: pts })
+      }
+      // Overlay scores (including zero-point weeks)
+      for (const row of scoreRows) {
+        const key = `${row.user_id}:${row.week}`
+        merged.set(key, { user_id: String(row.user_id), week: Number(row.week), points: Number(row.points) || 0 })
+      }
+
+      // Flatten to rows for downstream processing
+      const mergedRows = Array.from(merged.values()).sort((a, b) => a.week - b.week)
+
     const byUser: Record<string, { week: number; points: number }[]> = {}
-    for (const row of scoreRows || []) {
+    for (const row of mergedRows || []) {
         const uid = row.user_id as string
         if (!byUser[uid]) byUser[uid] = []
         byUser[uid].push({ week: row.week as number, points: row.points as number })
       }
 
       // Determine max week present in data (fallback 18)
-    const maxWeek = Math.max(18, ...(scoreRows || []).map((r) => (r.week as number) || 0))
+    const maxWeek = Math.max(18, ...(mergedRows || []).map((r) => (r.week as number) || 0))
 
       // Build cumulative series per user
       const cumulativeByUser: Record<string, number[]> = {}

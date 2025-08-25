@@ -1,16 +1,17 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/lib/auth"
-import { Menu, X, Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
+import { Menu, X, User } from "lucide-react";
+import { ProfileModal } from "./profile-modal";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { user, signOut } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/50">
@@ -24,11 +25,23 @@ export function Header() {
           <nav className="hidden md:flex items-center space-x-6">
             {user ? (
               <>
-                <Link href="/dashboard" className="text-foreground hover:text-primary transition-colors">
+                <Link
+                  href="/dashboard"
+                  className="text-foreground hover:text-primary transition-colors"
+                >
                   Dashboard
                 </Link>
-                <Link href="/leagues" className="text-foreground hover:text-primary transition-colors">
+                <Link
+                  href="/leagues"
+                  className="text-foreground hover:text-primary transition-colors"
+                >
                   Leagues
+                </Link>
+                <Link
+                  href="/admin"
+                  className="text-foreground hover:text-primary transition-colors"
+                >
+                  Admin
                 </Link>
                 <Button onClick={signOut} variant="outline" size="sm">
                   Sign Out
@@ -36,7 +49,10 @@ export function Header() {
               </>
             ) : (
               <>
-                <Link href="/auth" className="text-foreground hover:text-primary transition-colors">
+                <Link
+                  href="/auth"
+                  className="text-foreground hover:text-primary transition-colors"
+                >
                   Sign In
                 </Link>
                 <Button asChild>
@@ -45,14 +61,28 @@ export function Header() {
               </>
             )}
 
-            <Button variant="ghost" size="sm" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsProfileModalOpen(true)}
+            >
+              <User className="h-4 w-4" />
             </Button>
+            <ThemeToggle />
           </nav>
 
           {/* Mobile Menu Button */}
-          <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
           </Button>
         </div>
 
@@ -62,19 +92,48 @@ export function Header() {
             <div className="flex flex-col space-y-3">
               {user ? (
                 <>
-                  <Link href="/dashboard" className="text-foreground hover:text-primary transition-colors">
+                  <Link
+                    href="/dashboard"
+                    className="text-foreground hover:text-primary transition-colors"
+                  >
                     Dashboard
                   </Link>
-                  <Link href="/leagues" className="text-foreground hover:text-primary transition-colors">
+                  <Link
+                    href="/leagues"
+                    className="text-foreground hover:text-primary transition-colors"
+                  >
                     Leagues
                   </Link>
-                  <Button onClick={signOut} variant="outline" size="sm" className="w-fit bg-transparent">
+                  <Link
+                    href="/admin"
+                    className="text-foreground hover:text-primary transition-colors"
+                  >
+                    Admin
+                  </Link>
+                  <Button
+                    onClick={() => setIsProfileModalOpen(true)}
+                    variant="ghost"
+                    size="sm"
+                    className="w-fit"
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    Profile
+                  </Button>
+                  <Button
+                    onClick={signOut}
+                    variant="outline"
+                    size="sm"
+                    className="w-fit bg-transparent"
+                  >
                     Sign Out
                   </Button>
                 </>
               ) : (
                 <>
-                  <Link href="/auth" className="text-foreground hover:text-primary transition-colors">
+                  <Link
+                    href="/auth"
+                    className="text-foreground hover:text-primary transition-colors"
+                  >
                     Sign In
                   </Link>
                   <Button asChild size="sm" className="w-fit">
@@ -86,6 +145,12 @@ export function Header() {
           </nav>
         )}
       </div>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </header>
-  )
+  );
 }

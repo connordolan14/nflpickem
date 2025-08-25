@@ -1,123 +1,141 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { supabase } from "@/lib/supabase"
-import { DollarSign, Save, AlertTriangle, Loader2 } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
+import { DollarSign, Save, AlertTriangle, Loader2 } from "lucide-react";
 
 interface PointValuesManagementProps {
-  leagueId: string
-  canEdit: boolean
+  leagueId: string;
+  canEdit: boolean;
 }
 
 interface TeamPointValue {
-  team_id: string
-  team_name: string
-  nfl_team_code: string
-  default_points: number
-  custom_points: number | null
+  team_id: string;
+  team_name: string;
+  nfl_team_code: string;
+  logo: string;
+  default_points: number;
+  custom_points: number | null;
 }
 
-export function PointValuesManagement({ leagueId, canEdit }: PointValuesManagementProps) {
-  const [teams, setTeams] = useState<TeamPointValue[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [hasChanges, setHasChanges] = useState(false)
+export function PointValuesManagement({
+  leagueId,
+  canEdit,
+}: PointValuesManagementProps) {
+  const [teams, setTeams] = useState<TeamPointValue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    fetchTeamValues()
-  }, [leagueId])
+    fetchTeamValues();
+  }, [leagueId]);
 
   const fetchTeamValues = async () => {
     try {
       // Fetch all teams with their default values
       const { data: teamsData, error: teamsError } = await supabase
         .from("teams")
-        .select("id, display_name, nfl_team_code, points_value")
-        .order("display_name")
+        .select("id, display_name, nfl_team_code, logo, points_value")
+        .order("display_name");
 
-      if (teamsError) throw teamsError
+      if (teamsError) throw teamsError;
 
       // Fetch custom values for this league
       const { data: customValues, error: customError } = await supabase
         .from("league_team_values")
         .select("team_id, points_value")
-        .eq("league_id", leagueId)
+        .eq("league_id", leagueId);
 
-      if (customError) throw customError
+      if (customError) throw customError;
 
       // Combine data
-      const customValuesMap = new Map(customValues?.map((cv) => [cv.team_id, cv.points_value]) || [])
+      const customValuesMap = new Map(
+        customValues?.map((cv) => [cv.team_id, cv.points_value]) || []
+      );
 
       const teamValues: TeamPointValue[] =
         teamsData?.map((team) => ({
           team_id: team.id,
           team_name: team.display_name,
           nfl_team_code: team.nfl_team_code,
+          logo: team.logo,
           default_points: team.points_value,
           custom_points: customValuesMap.get(team.id) || null,
-        })) || []
+        })) || [];
 
-      setTeams(teamValues)
+      setTeams(teamValues);
     } catch (error) {
-      console.error("Error fetching team values:", error)
+      console.error("Error fetching team values:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const updateCustomPoints = (teamId: string, points: number) => {
-    if (!canEdit) return
+    if (!canEdit) return;
 
-    setTeams((prev) => prev.map((team) => (team.team_id === teamId ? { ...team, custom_points: points } : team)))
-    setHasChanges(true)
-  }
+    setTeams((prev) =>
+      prev.map((team) =>
+        team.team_id === teamId ? { ...team, custom_points: points } : team
+      )
+    );
+    setHasChanges(true);
+  };
 
   const resetToDefaults = () => {
-    if (!canEdit) return
+    if (!canEdit) return;
 
-    setTeams((prev) => prev.map((team) => ({ ...team, custom_points: null })))
-    setHasChanges(true)
-  }
+    setTeams((prev) => prev.map((team) => ({ ...team, custom_points: null })));
+    setHasChanges(true);
+  };
 
   const validatePoints = () => {
-    const customPoints = teams.filter((team) => team.custom_points !== null).map((team) => team.custom_points!)
+    const customPoints = teams
+      .filter((team) => team.custom_points !== null)
+      .map((team) => team.custom_points!);
 
-    if (customPoints.length === 0) return true
+    if (customPoints.length === 0) return true;
 
     // Check for duplicates
-    const uniquePoints = new Set(customPoints)
+    const uniquePoints = new Set(customPoints);
     if (uniquePoints.size !== customPoints.length) {
-      setError("All custom point values must be unique.")
-      return false
+      setError("All custom point values must be unique.");
+      return false;
     }
 
     // Check range
-    const invalidPoints = customPoints.filter((points) => points < 1 || points > 32)
+    const invalidPoints = customPoints.filter(
+      (points) => points < 1 || points > 32
+    );
     if (invalidPoints.length > 0) {
-      setError("Point values must be between 1 and 32.")
-      return false
+      setError("Point values must be between 1 and 32.");
+      return false;
     }
 
-    return true
-  }
+    return true;
+  };
 
   const saveChanges = async () => {
-    if (!canEdit || !validatePoints()) return
+    if (!canEdit || !validatePoints()) return;
 
-    setSaving(true)
-    setError("")
-    setSuccess("")
+    setSaving(true);
+    setError("");
+    setSuccess("");
 
     try {
       // Delete existing custom values
-      await supabase.from("league_team_values").delete().eq("league_id", leagueId)
+      await supabase
+        .from("league_team_values")
+        .delete()
+        .eq("league_id", leagueId);
 
       // Insert new custom values
       const customValues = teams
@@ -126,23 +144,25 @@ export function PointValuesManagement({ leagueId, canEdit }: PointValuesManageme
           league_id: leagueId,
           team_id: team.team_id,
           points_value: team.custom_points!,
-        }))
+        }));
 
       if (customValues.length > 0) {
-        const { error: insertError } = await supabase.from("league_team_values").insert(customValues)
+        const { error: insertError } = await supabase
+          .from("league_team_values")
+          .insert(customValues);
 
-        if (insertError) throw insertError
+        if (insertError) throw insertError;
       }
 
-      setSuccess("Point values updated successfully!")
-      setHasChanges(false)
+      setSuccess("Point values updated successfully!");
+      setHasChanges(false);
     } catch (error: any) {
-      console.error("Error saving point values:", error)
-      setError("Failed to save point values. Please try again.")
+      console.error("Error saving point values:", error);
+      setError("Failed to save point values. Please try again.");
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -156,7 +176,7 @@ export function PointValuesManagement({ leagueId, canEdit }: PointValuesManageme
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -166,8 +186,8 @@ export function PointValuesManagement({ leagueId, canEdit }: PointValuesManageme
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Point values cannot be modified after Week 1 games have started. This ensures fairness for all league
-            members.
+            Point values cannot be modified after Week 1 games have started.
+            This ensures fairness for all league members.
           </AlertDescription>
         </Alert>
       )}
@@ -183,7 +203,11 @@ export function PointValuesManagement({ leagueId, canEdit }: PointValuesManageme
               <Button variant="outline" size="sm" onClick={resetToDefaults}>
                 Reset to Defaults
               </Button>
-              <Button size="sm" onClick={saveChanges} disabled={!hasChanges || saving}>
+              <Button
+                size="sm"
+                onClick={saveChanges}
+                disabled={!hasChanges || saving}
+              >
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -212,43 +236,59 @@ export function PointValuesManagement({ leagueId, canEdit }: PointValuesManageme
             </Alert>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {teams.map((team) => (
-              <Card key={team.team_id} className="p-3">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={`/abstract-geometric-shapes.png?height=24&width=24&query=${team.nfl_team_code} NFL team logo`}
-                      alt={team.team_name}
-                      className="w-6 h-6 rounded"
-                    />
-                    <span className="text-sm font-medium truncate">{team.team_name}</span>
+              <Card
+                key={team.team_id}
+                className="p-4 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 flex flex-col items-center gap-4"
+              >
+                {/* Logo + Team Name */}
+                <div className="flex flex-col items-center gap-2">
+                  <img
+                    src={
+                      team.logo ||
+                      `/abstract-geometric-shapes.png?height=120&width=120&query=${team.nfl_team_code} NFL team logo`
+                    }
+                    alt={team.team_name}
+                    className="w-20 h-20 object-contain rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white p-2 shadow-md"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = `/abstract-geometric-shapes.png?height=120&width=120&query=${team.nfl_team_code} NFL team logo`;
+                    }}
+                  />
+                  <span className="text-base font-semibold text-center truncate">
+                    {team.team_name}
+                  </span>
+                </div>
+
+                {/* Points Section */}
+                <div className="w-full space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Default:</span>
+                    <Badge variant="outline" className="px-2 py-1">
+                      {team.default_points}
+                    </Badge>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Default:</span>
-                      <Badge variant="outline">{team.default_points}</Badge>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-muted-foreground">Custom:</span>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="32"
-                        value={team.custom_points || ""}
-                        onChange={(e) => {
-                          const value = e.target.value ? Number.parseInt(e.target.value) : null
-                          if (value !== null) {
-                            updateCustomPoints(team.team_id, value)
-                          }
-                        }}
-                        placeholder={team.default_points.toString()}
-                        className="h-7 text-xs"
-                        disabled={!canEdit}
-                      />
-                    </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Custom:</span>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="32"
+                      value={team.custom_points || ""}
+                      onChange={(e) => {
+                        const value = e.target.value
+                          ? Number.parseInt(e.target.value)
+                          : null;
+                        if (value !== null) {
+                          updateCustomPoints(team.team_id, value);
+                        }
+                      }}
+                      placeholder={team.default_points.toString()}
+                      className="h-8 text-sm w-20 border border-zinc-300 dark:border-zinc-700"
+                      disabled={!canEdit}
+                    />
                   </div>
                 </div>
               </Card>
@@ -267,5 +307,5 @@ export function PointValuesManagement({ leagueId, canEdit }: PointValuesManageme
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

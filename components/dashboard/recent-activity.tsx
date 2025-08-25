@@ -1,26 +1,26 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Activity, Trophy, Users, Target } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Activity, Trophy, Users, Target } from "lucide-react";
 
 interface RecentActivityProps {
-  userId: string
+  userId: string;
 }
 
 interface ActivityItem {
-  id: string
-  type: "score" | "pick" | "league_join" | "league_create"
-  title: string
-  description: string
-  timestamp: string
-  points?: number
+  id: string;
+  type: "score" | "pick" | "league_join" | "league_create";
+  title: string;
+  description: string;
+  timestamp: string;
+  points?: number;
 }
 
 export function RecentActivity({ userId }: RecentActivityProps) {
-  const [activities, setActivities] = useState<ActivityItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchRecentActivity() {
@@ -58,57 +58,59 @@ export function RecentActivity({ userId }: RecentActivityProps) {
             timestamp: "2024-09-07T21:00:00Z",
             points: 18,
           },
-        ]
+        ];
 
-        setActivities(mockActivities)
+        setActivities(mockActivities);
       } catch (error) {
-        console.error("Error fetching recent activity:", error)
+        console.error("Error fetching recent activity:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    fetchRecentActivity()
-  }, [userId])
+    fetchRecentActivity();
+  }, [userId]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case "score":
-        return Trophy
+        return Trophy;
       case "pick":
-        return Target
+        return Target;
       case "league_join":
       case "league_create":
-        return Users
+        return Users;
       default:
-        return Activity
+        return Activity;
     }
-  }
+  };
 
   const getActivityColor = (type: string) => {
     switch (type) {
       case "score":
-        return "text-primary"
+        return "text-primary";
       case "pick":
-        return "text-accent"
+        return "text-primary";
       case "league_join":
       case "league_create":
-        return "text-secondary"
+        return "text-primary  ";
       default:
-        return "text-muted-foreground"
+        return "text-muted-foreground";
     }
-  }
+  };
 
   const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+    );
 
-    if (diffInHours < 1) return "Just now"
-    if (diffInHours < 24) return `${diffInHours}h ago`
-    if (diffInHours < 48) return "Yesterday"
-    return date.toLocaleDateString()
-  }
+    if (diffInHours < 1) return "Just now";
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    if (diffInHours < 48) return "Yesterday";
+    return date.toLocaleDateString();
+  };
 
   if (loading) {
     return (
@@ -119,7 +121,10 @@ export function RecentActivity({ userId }: RecentActivityProps) {
         <CardContent>
           <div className="space-y-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="animate-pulse flex items-center space-x-3">
+              <div
+                key={i}
+                className="animate-pulse flex items-center space-x-3"
+              >
                 <div className="h-8 w-8 bg-muted rounded-full"></div>
                 <div className="flex-1">
                   <div className="h-4 bg-muted rounded w-3/4 mb-1"></div>
@@ -130,7 +135,7 @@ export function RecentActivity({ userId }: RecentActivityProps) {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -150,8 +155,8 @@ export function RecentActivity({ userId }: RecentActivityProps) {
         ) : (
           <div className="space-y-4">
             {activities.map((activity) => {
-              const Icon = getActivityIcon(activity.type)
-              const iconColor = getActivityColor(activity.type)
+              const Icon = getActivityIcon(activity.type);
+              const iconColor = getActivityColor(activity.type);
 
               return (
                 <div key={activity.id} className="flex items-start space-x-3">
@@ -160,22 +165,28 @@ export function RecentActivity({ userId }: RecentActivityProps) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-foreground">{activity.title}</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {activity.title}
+                      </p>
                       {activity.points && (
                         <Badge variant="outline" className="text-xs">
                           +{activity.points} pts
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">{activity.description}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{formatTimestamp(activity.timestamp)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {activity.description}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {formatTimestamp(activity.timestamp)}
+                    </p>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -211,7 +211,7 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
               }
               placeholder="Enter league name"
               maxLength={50}
-              className="bg-input/50 backdrop-blur-sm"
+              className="bg-input/50 backdrop-blur-sm border border-white/50"
               required
             />
             <p className="text-xs text-muted-foreground">
@@ -231,7 +231,7 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
                 }))
               }
               placeholder="Describe your league..."
-              className="bg-input/50 backdrop-blur-sm"
+              className="bg-input/50 backdrop-blur-sm border border-white/50"
               rows={3}
             />
           </div>
@@ -249,7 +249,12 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
                       visibility: checked ? "public" : "private",
                     }))
                   }
+                  className="
+    data-[state=checked]:bg-primary
+    data-[state=unchecked]: border border-white
+  "
                 />
+
                 <Label htmlFor="visibility" className="flex items-center">
                   {formData.visibility === "public" ? (
                     <>
@@ -293,11 +298,20 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
             }
           >
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="default" id="default" />
+              <RadioGroupItem
+                value="default"
+                id="custom"
+                className="border-white text-white data-[state=checked]:bg-white data-[state=checked]:border-white"
+              />
               <Label htmlFor="default">Use default NFL team values</Label>
             </div>
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="custom" id="custom" />
+              <RadioGroupItem
+                value="custom"
+                id="custom"
+                className="border-white text-white data-[state=checked]:bg-white data-[state=checked]:border-white"
+              />
+
               <Label htmlFor="custom">
                 Customize point values for this league
               </Label>

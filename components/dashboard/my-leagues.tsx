@@ -1,47 +1,49 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { supabase } from "@/lib/supabase"
-import { Users, Trophy, Clock, ArrowRight } from "lucide-react"
-import Link from "next/link"
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
+import { Users, Trophy, Clock, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 interface MyLeaguesProps {
-  userId: string
+  userId: string;
 }
 
 interface LeagueData {
-  id: string
-  name: string
-  visibility: string
-  member_count: number
-  user_rank: number
-  user_points: number
-  next_deadline: string | null
+  id: string;
+  name: string;
+  visibility: string;
+  member_count: number;
+  user_rank: number;
+  user_points: number;
+  next_deadline: string | null;
 }
 
 export function MyLeagues({ userId }: MyLeaguesProps) {
-  const [leagues, setLeagues] = useState<LeagueData[]>([])
-  const [loading, setLoading] = useState(true)
+  const [leagues, setLeagues] = useState<LeagueData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchMyLeagues() {
       try {
         const { data, error } = await supabase
           .from("league_members")
-          .select(`
+          .select(
+            `
             league_id,
             leagues!inner (
               id,
               name,
               visibility
             )
-          `)
-          .eq("user_id", userId)
+          `
+          )
+          .eq("user_id", userId);
 
-        if (error) throw error
+        if (error) throw error;
 
         // Transform data and add mock stats (in real app, would calculate from scores/picks)
         const leagueData: LeagueData[] =
@@ -53,18 +55,18 @@ export function MyLeagues({ userId }: MyLeaguesProps) {
             user_rank: index + 1, // Mock data
             user_points: Math.floor(Math.random() * 100) + 50, // Mock data
             next_deadline: "2024-09-15T13:00:00Z", // Mock data
-          })) || []
+          })) || [];
 
-        setLeagues(leagueData)
+        setLeagues(leagueData);
       } catch (error) {
-        console.error("Error fetching leagues:", error)
+        console.error("Error fetching leagues:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    fetchMyLeagues()
-  }, [userId])
+    fetchMyLeagues();
+  }, [userId]);
 
   if (loading) {
     return (
@@ -83,7 +85,7 @@ export function MyLeagues({ userId }: MyLeaguesProps) {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -98,7 +100,9 @@ export function MyLeagues({ userId }: MyLeaguesProps) {
         {leagues.length === 0 ? (
           <div className="text-center py-8">
             <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-4">You haven't joined any leagues yet.</p>
+            <p className="text-muted-foreground mb-4">
+              You haven't joined any leagues yet.
+            </p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               <Button asChild>
                 <Link href="/leagues/join">Join a League</Link>
@@ -109,17 +113,27 @@ export function MyLeagues({ userId }: MyLeaguesProps) {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             {leagues.map((league) => (
-              <div
+              <Link
+                href={`/leagues/${league.id}`}
                 key={league.id}
-                className="p-4 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/30 transition-colors"
+                className="p-4 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/30 transition-colors hover:cursor-pointer hover:opacity-50"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <h3 className="font-semibold text-foreground">{league.name}</h3>
+                    <h3 className="font-semibold text-foreground">
+                      {league.name}
+                    </h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={league.visibility === "public" ? "default" : "secondary"} className="text-xs">
+                      <Badge
+                        variant={
+                          league.visibility === "public"
+                            ? "default"
+                            : "secondary"
+                        }
+                        className="text-xs"
+                      >
                         {league.visibility}
                       </Badge>
                       <span className="text-sm text-muted-foreground flex items-center">
@@ -129,9 +143,7 @@ export function MyLeagues({ userId }: MyLeaguesProps) {
                     </div>
                   </div>
                   <Button asChild variant="ghost" size="sm">
-                    <Link href={`/leagues/${league.id}`}>
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
 
@@ -145,11 +157,11 @@ export function MyLeagues({ userId }: MyLeaguesProps) {
                     Next: Sun 1:00 PM
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -112,12 +112,14 @@ export function StandingsTable({ standings, currentUserId, leagueId }: Standings
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedStandings.map((standing) => {
+            {sortedStandings.map((standing, idx) => {
+              // Compose a unique, stable-ish key. Prefer user_id; fall back to index suffix to avoid collisions.
+              const rowKey = standing.user_id ? `${standing.user_id}::${idx}` : `row-${idx}`
               const isCurrentUser = standing.user_id === currentUserId
               const isExpanded = expandedRows.has(standing.user_id)
 
               return (
-                <Fragment key={standing.user_id}>
+                <Fragment key={rowKey}>
                   <TableRow
                     className={`
                       ${isCurrentUser ? "bg-primary/10 border-primary/20" : "hover:bg-muted/20"}
@@ -167,7 +169,7 @@ export function StandingsTable({ standings, currentUserId, leagueId }: Standings
                   </TableRow>
 
                   {isExpanded && (
-                    <TableRow key={`${standing.user_id}-details`}>
+                    <TableRow key={`${rowKey}-details`}>
                       <TableCell colSpan={7} className="p-0">
                         <WeeklyBreakdown userId={standing.user_id} leagueId={leagueId} />
                       </TableCell>

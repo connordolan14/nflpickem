@@ -71,7 +71,7 @@ export function PicksHistory({ leagueId, userId }: PicksHistoryProps) {
           slot_number,
           is_bye,
           picked_team_id,
-          teams:picked_team_id(display_name, nfl_team_code),
+          teams:picked_team_id(display_name, nfl_team_code, points_value),
           games(
             home_team_id,
             away_team_id,
@@ -88,6 +88,16 @@ export function PicksHistory({ leagueId, userId }: PicksHistoryProps) {
         .order("slot_number")
 
       if (picksError) throw picksError
+
+      // Fetch league-specific team point overrides (if any)
+      const { data: ltvData, error: ltvError } = await supabase
+        .from("league_team_values")
+        .select("team_id, points_value")
+        .eq("league_id", leagueId)
+
+      if (ltvError) throw ltvError
+      const ltvMap = new Map<string, number>()
+      ;(ltvData || []).forEach((r: any) => ltvMap.set(String(r.team_id), r.points_value as number))
 
       // Fetch scores for points calculation
       const { data: scoresData, error: scoresError } = await supabase
@@ -117,6 +127,12 @@ export function PicksHistory({ leagueId, userId }: PicksHistoryProps) {
         picksData?.map((pick: any) => {
           const teamRel = Array.isArray(pick.teams) ? pick.teams[0] : pick.teams
           const gameRel = Array.isArray(pick.games) ? pick.games[0] : pick.games
+          const pickedId = pick.picked_team_id as string | null
+          const winnerId = (gameRel?.winner_team_id as string | number | null) ?? null
+          const isWin = !pick.is_bye && winnerId !== null && String(winnerId) === String(pickedId)
+          const override = pickedId ? ltvMap.get(String(pickedId)) : undefined
+          const baseValue = teamRel?.points_value ?? 0
+          const points_earned = isWin ? (override ?? baseValue ?? 0) : 0
           return {
             week: pick.week,
             slot_number: pick.slot_number,
@@ -128,7 +144,7 @@ export function PicksHistory({ leagueId, userId }: PicksHistoryProps) {
             home_team_id: gameRel?.home_team_id || null,
             away_team_id: gameRel?.away_team_id || null,
             winner_team_id: gameRel?.winner_team_id || null,
-            points_earned: gameRel?.winner_team_id === pick.picked_team_id ? Math.floor(Math.random() * 20) + 5 : 0, // Mock points
+            points_earned,
             kickoff_ts: gameRel?.kickoff_ts || null,
             status: gameRel?.status || null,
             picked_team_id: pick.picked_team_id,
@@ -156,11 +172,15 @@ export function PicksHistory({ leagueId, userId }: PicksHistoryProps) {
       const weeklyArray = Array.from(weeklyMap.values())
       setWeeklyData(weeklyArray)
 
-      // Calculate stats
-      const completedWeeks = weeklyArray.filter((w) => w.status === "completed")
-      const totalPoints = completedWeeks.reduce((sum, w) => sum + w.total_points, 0)
+      // Calculate stats based on final games only
+      const completedWeeks = weeklyArray // treat weeks with any final game points as completed for user
+        .map((w) => ({
+          ...w,
+          isCompleted: processedPicks.some((p) => p.week === w.week && (p.status === "final" || p.winner_team_id !== null)),
+        }))
+      const totalPoints = weeklyArray.reduce((sum, w) => sum + w.total_points, 0)
       const totalWins = processedPicks.filter((p) => p.points_earned > 0).length
-      const totalLosses = processedPicks.filter((p) => !p.is_bye && p.points_earned === 0).length
+      const totalLosses = processedPicks.filter((p) => !p.is_bye && (p.status === "final" || p.winner_team_id !== null) && p.points_earned === 0).length
       const byesUsed = processedPicks.filter((p) => p.is_bye).length
 
       const bestWeek = completedWeeks.reduce(

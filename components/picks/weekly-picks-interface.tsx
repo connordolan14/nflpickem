@@ -43,6 +43,8 @@ interface GameData {
   kickoff_ts: string;
   status: string;
   winner_team_id: string | null;
+  home_logo: string | null;
+  away_logo: string | null;
 }
 
 interface PickData {
@@ -157,8 +159,8 @@ export function WeeklyPicksInterface({
         .select(
           `
           *,
-          home_team:teams!games_home_team_id_fkey(display_name, nfl_team_code, points_value),
-          away_team:teams!games_away_team_id_fkey(display_name, nfl_team_code, points_value)
+          home_team:teams!games_home_team_id_fkey(display_name, nfl_team_code, points_value, logo),
+          away_team:teams!games_away_team_id_fkey(display_name, nfl_team_code, points_value, logo)
         `
         )
         .eq("week", currentWeek)
@@ -187,8 +189,10 @@ export function WeeklyPicksInterface({
           away_team_id: normalizeId(game.away_team_id),
           home_team: game.home_team.display_name,
           home_code: game.home_team.nfl_team_code,
+          home_logo: game.home_team.logo,
           away_team: game.away_team.display_name,
           away_code: game.away_team.nfl_team_code,
+          away_logo: game.away_team.logo,
           home_points: game.home_team.points_value,
           away_points: game.away_team.points_value,
           kickoff_ts: game.kickoff_ts,

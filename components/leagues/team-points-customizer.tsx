@@ -29,25 +29,7 @@ export function TeamPointsCustomizer({
     return "bg-red-100 text-red-800 border-red-200";
   };
 
-  const validateUnique = () => {
-    const allValues = Object.values(values);
-    const uniqueValues = new Set(allValues);
-    return allValues.length === uniqueValues.size;
-  };
-
-  const getDuplicateValues = () => {
-    const valueCount: Record<number, string[]> = {};
-    Object.entries(values).forEach(([teamId, value]) => {
-      if (!valueCount[value]) valueCount[value] = [];
-      valueCount[value].push(teamId);
-    });
-    return Object.entries(valueCount).filter(
-      ([_, teamIds]) => teamIds.length > 1
-    );
-  };
-
-  const duplicates = getDuplicateValues();
-  const isValid = validateUnique();
+  // Duplicates are allowed; no uniqueness checks.
 
   return (
     <div className="space-y-4">
@@ -57,52 +39,23 @@ export function TeamPointsCustomizer({
             Customize Team Point Values
           </h3>
           <p className="text-sm text-muted-foreground">
-            Assign unique point values (1-32) to each NFL team. Higher values =
-            more points when picked.
+            Assign point values (1-32) to each NFL team. Higher values = more points when picked.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge
-            variant={isValid ? "default" : "destructive"}
-            className="text-xs"
-          >
-            {isValid ? "All Unique" : "Duplicates Found"}
-          </Badge>
-        </div>
+  <div />
       </div>
 
-      {!isValid && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-          <p className="text-sm text-destructive font-medium mb-2">
-            Duplicate values found:
-          </p>
-          <div className="space-y-1">
-            {duplicates.map(([value, teamIds]) => (
-              <p key={value} className="text-xs text-destructive">
-                Value {value}:{" "}
-                {teamIds
-                  .map((id) => teams.find((t) => t.id === id)?.display_name)
-                  .join(", ")}
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {teams.map((team) => {
           const currentValue = values[team.id] || team.points_value;
-          const isDuplicate = duplicates.some(([_, teamIds]) =>
-            teamIds.includes(team.id)
-          );
+          const isDuplicate = false;
 
           return (
             <div
               key={team.id}
               className={`p-4 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 flex flex-col items-center gap-4 transition-all ${
-                isDuplicate
-                  ? "border-destructive/50 bg-destructive/5"
-                  : "hover:shadow-md"
+                "hover:shadow-md"
               }`}
             >
               {/* Logo + Team Name */}

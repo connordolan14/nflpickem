@@ -79,7 +79,7 @@ export function PointValuesManagement({
     }
   };
 
-  const updateCustomPoints = (teamId: string, points: number) => {
+  const updateCustomPoints = (teamId: string, points: number | null) => {
     if (!canEdit) return;
 
     setTeams((prev) =>
@@ -104,14 +104,7 @@ export function PointValuesManagement({
 
     if (customPoints.length === 0) return true;
 
-    // Check for duplicates
-    const uniquePoints = new Set(customPoints);
-    if (uniquePoints.size !== customPoints.length) {
-      setError("All custom point values must be unique.");
-      return false;
-    }
-
-    // Check range
+    // Range only; duplicates allowed
     const invalidPoints = customPoints.filter(
       (points) => points < 1 || points > 32
     );
@@ -276,14 +269,17 @@ export function PointValuesManagement({
                       type="number"
                       min="1"
                       max="32"
-                      value={team.custom_points || ""}
+                      value={team.custom_points ?? ""}
                       onChange={(e) => {
-                        const value = e.target.value
-                          ? Number.parseInt(e.target.value)
-                          : null;
-                        if (value !== null) {
-                          updateCustomPoints(team.team_id, value);
+                        const raw = e.target.value.trim();
+                        if (raw === "") {
+                          updateCustomPoints(team.team_id, null);
+                          return;
                         }
+                        const parsed = Number.parseInt(raw, 10);
+                        if (Number.isNaN(parsed)) return;
+                        const clamped = Math.max(1, Math.min(32, parsed));
+                        updateCustomPoints(team.team_id, clamped);
                       }}
                       placeholder={team.default_points.toString()}
                       className="h-8 text-sm w-20 border border-zinc-300 dark:border-zinc-700"
@@ -299,7 +295,7 @@ export function PointValuesManagement({
             <h4 className="font-semibold mb-2">Point Value Guidelines</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li>• Higher values = more points for picking that team</li>
-              <li>• All custom values must be unique (1-32)</li>
+              <li>• Duplicates are allowed (values can repeat)</li>
               <li>• Leave blank to use default values</li>
               <li>• Changes only allowed before Week 1 starts</li>
             </ul>

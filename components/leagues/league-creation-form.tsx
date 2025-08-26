@@ -56,7 +56,7 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
         const [teamsRes, season] = await Promise.all([
           supabase
             .from("teams")
-            .select("id, nfl_team_code, display_name, points_value")
+            .select("id, nfl_team_code, display_name, points_value, logo")
             .order("display_name"),
           fetchCurrentSeasonId(supabase),
         ]);
@@ -104,11 +104,6 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
 
     if (formData.useCustomPoints) {
       const values = Object.values(formData.customTeamValues);
-      const uniqueValues = new Set(values);
-      if (values.length !== uniqueValues.size) {
-        setError("All team point values must be unique");
-        return false;
-      }
       if (values.some((v) => v < 1 || v > 32)) {
         setError("Team point values must be between 1 and 32");
         return false;

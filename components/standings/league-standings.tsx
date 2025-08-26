@@ -222,7 +222,7 @@ export function LeagueStandings({ leagueId, userId }: LeagueStandingsProps) {
             )}
           </div>
         </div>
-
+            
         <div className="flex items-center gap-2">
           <Button onClick={exportToCSV} variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />

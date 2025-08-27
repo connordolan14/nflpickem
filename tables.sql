@@ -1,216 +1,123 @@
-create table public.games (
-  id bigint not null,
-  season_id bigint not null,
-  week integer null,
-  home_team_id bigint null,
-  away_team_id bigint null,
-  kickoff_ts timestamp with time zone null,
-  status text not null default 'scheduled'::text,
-  winner_team_id bigint null,
-  constraint games_pkey primary key (id),
-  constraint games_home_team_id_fkey foreign KEY (home_team_id) references teams (id) on delete RESTRICT,
-  constraint games_winner_team_id_fkey foreign KEY (winner_team_id) references teams (id) on delete RESTRICT,
-  constraint games_season_id_fkey foreign KEY (season_id) references seasons (id) on delete RESTRICT,
-  constraint games_away_team_id_fkey foreign KEY (away_team_id) references teams (id) on delete RESTRICT,
-  constraint games_status_check check (
-    (
-      status = any (
-        array['scheduled'::text, 'live'::text, 'final'::text]
-      )
-    )
-  ),
-  constraint games_home_away_diff check (
-    (
-      (home_team_id is null)
-      or (away_team_id is null)
-      or (home_team_id <> away_team_id)
-    )
-  ),
-  constraint games_winner_is_participant check (
-    (
-      (winner_team_id is null)
-      or (winner_team_id = home_team_id)
-      or (winner_team_id = away_team_id)
-    )
-  )
-) TABLESPACE pg_default;
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
-create index IF not exists games_season_week_idx on public.games using btree (season_id, week) TABLESPACE pg_default;
-
-create index IF not exists games_kickoff_idx on public.games using btree (kickoff_ts) TABLESPACE pg_default;
-
-create index IF not exists games_status_idx on public.games using btree (status) TABLESPACE pg_default;
-
-
-create table public.league_member_state (
-  id bigserial not null,
-  league_id bigint not null,
-  user_id uuid not null,
-  byes_used integer not null default 0,
-  created_at timestamp with time zone not null default now(),
-  updated_at timestamp with time zone not null default now(),
-  constraint league_member_state_pkey primary key (id),
-  constraint league_member_state_league_id_user_id_key unique (league_id, user_id),
-  constraint league_member_state_league_id_fkey foreign KEY (league_id) references leagues (id) on delete CASCADE,
-  constraint league_member_state_user_id_fkey foreign KEY (user_id) references auth.users (id) on delete CASCADE,
-  constraint league_member_state_byes_used_check check (
-    (
-      (byes_used >= 0)
-      and (byes_used <= 4)
-    )
-  )
-) TABLESPACE pg_default;
-
-create index IF not exists lms_idx on public.league_member_state using btree (league_id, user_id) TABLESPACE pg_default;
-
-create trigger t_lms_updated BEFORE
-update on league_member_state for EACH row
-execute FUNCTION set_current_timestamp_updated_at ();
-
-create table public.league_team_values (
-  id bigserial not null,
-  league_id bigint null,
-  team_id bigint null,
-  points_value integer not null,
-  created_at timestamp with time zone null default now(),
-  constraint league_team_values_pkey primary key (id),
-  constraint league_team_values_league_id_team_id_key unique (league_id, team_id),
-  constraint league_team_values_league_id_fkey foreign KEY (league_id) references leagues (id) on delete CASCADE,
-  constraint league_team_values_team_id_fkey foreign KEY (team_id) references teams (id) on delete CASCADE
-) TABLESPACE pg_default;
-
-create index IF not exists idx_league_team_values_league_id on public.league_team_values using btree (league_id) TABLESPACE pg_default;
-
-create table public.leagues (
-  id bigserial not null,
-  name text not null,
-  visibility text not null default 'private'::text,
-  owner_id uuid not null,
-  season_id bigint not null,
-  join_code text null,
-  rules_json jsonb not null default '{}'::jsonb,
-  created_at timestamp with time zone not null default now(),
-  description text null,
-  constraint leagues_pkey primary key (id),
-  constraint leagues_owner_id_fkey foreign KEY (owner_id) references auth.users (id) on delete CASCADE,
-  constraint leagues_season_id_fkey foreign KEY (season_id) references seasons (id) on delete RESTRICT,
-  constraint leagues_visibility_check check (
-    (
-      visibility = any (array['public'::text, 'private'::text])
-    )
-  )
-) TABLESPACE pg_default;
-
-create unique INDEX IF not exists leagues_join_code_uq on public.leagues using btree (join_code) TABLESPACE pg_default;
-
-create index IF not exists leagues_season_idx on public.leagues using btree (season_id) TABLESPACE pg_default;
-
-create table public.picks (
-  id bigserial not null,
-  league_id bigint not null,
-  user_id uuid not null,
-  season_id bigint not null,
-  week integer not null,
-  game_id bigint not null,
-  picked_team_id bigint not null,
-  source text not null default 'user'::text,
-  created_at timestamp with time zone not null default now(),
-  locked_at timestamp with time zone null,
-  slot_number integer null,
-  is_bye boolean null default false,
-  constraint picks_pkey primary key (id),
-  constraint picks_league_id_user_id_game_id_key unique (league_id, user_id, game_id),
-  constraint picks_season_id_fkey foreign KEY (season_id) references seasons (id) on delete RESTRICT,
-  constraint picks_league_id_fkey foreign KEY (league_id) references leagues (id) on delete CASCADE,
-  constraint picks_picked_team_id_fkey foreign KEY (picked_team_id) references teams (id),
-  constraint picks_user_id_fkey foreign KEY (user_id) references auth.users (id) on delete CASCADE,
-  constraint picks_source_check check (
-    (
-      source = any (
-        array[
-          'user'::text,
-          'auto_bye'::text,
-          'forfeit'::text,
-          'admin'::text
-        ]
-      )
-    )
-  ),
-  constraint picks_week_check check (
-    (
-      (week >= 1)
-      and (week <= 18)
-    )
-  ),
-  constraint picks_slot_number_check check ((slot_number = any (array[1, 2])))
-) TABLESPACE pg_default;
-
-create index IF not exists picks_week_idx on public.picks using btree (league_id, user_id, week) TABLESPACE pg_default;
-
-create index IF not exists picks_team_idx on public.picks using btree (league_id, user_id, picked_team_id) TABLESPACE pg_default;
-
-create unique INDEX IF not exists ux_user_team_once_per_season on public.picks using btree (league_id, user_id, season_id, picked_team_id) TABLESPACE pg_default
-where
-  (source = any (array['user'::text, 'admin'::text]));
-
-create index IF not exists idx_picks_user_league_week on public.picks using btree (user_id, league_id, week) TABLESPACE pg_default;
-
-create index IF not exists idx_picks_league_week on public.picks using btree (league_id, week) TABLESPACE pg_default;
-
-create trigger t_picks_biu BEFORE INSERT
-or
-update on picks for EACH row
-execute FUNCTION picks_before_insert_update ();
-
-create table public.profiles (
-  user_id uuid not null,
-  display_name text not null,
-  created_at timestamp with time zone not null default now(),
-  avatar_url text null,
-  constraint profiles_pkey primary key (user_id),
-  constraint profiles_user_id_fkey foreign KEY (user_id) references auth.users (id) on delete CASCADE
-) TABLESPACE pg_default;
-
-create table public.scores (
-  id bigserial not null,
-  league_id bigint not null,
-  user_id uuid not null,
-  season_id bigint not null,
-  week integer not null,
-  points integer not null,
-  detail jsonb not null,
-  created_at timestamp with time zone not null default now(),
-  constraint scores_pkey primary key (id),
-  constraint scores_league_id_user_id_week_key unique (league_id, user_id, week),
-  constraint scores_league_id_fkey foreign KEY (league_id) references leagues (id) on delete CASCADE,
-  constraint scores_season_id_fkey foreign KEY (season_id) references seasons (id) on delete RESTRICT,
-  constraint scores_user_id_fkey foreign KEY (user_id) references auth.users (id) on delete CASCADE
-) TABLESPACE pg_default;
-
-create index IF not exists scores_week_idx on public.scores using btree (league_id, week) TABLESPACE pg_default;
-
-create index IF not exists idx_scores_league_user on public.scores using btree (league_id, user_id) TABLESPACE pg_default;
-
-create table public.seasons (
-  id bigserial not null,
-  year integer not null,
-  is_active boolean not null default false,
-  created_at timestamp with time zone not null default now(),
-  constraint seasons_pkey primary key (id),
-  constraint seasons_year_key unique (year)
-) TABLESPACE pg_default;
-
-create table public.teams (
-  id bigserial not null,
-  season_id bigint not null,
-  nfl_team_code text not null,
-  display_name text not null,
-  points_value integer not null default 0,
-  logo text null,
-  constraint teams_pkey primary key (id),
-  constraint teams_points_value_unique unique (points_value),
-  constraint teams_season_id_nfl_team_code_key unique (season_id, nfl_team_code),
-  constraint teams_season_id_fkey foreign KEY (season_id) references seasons (id) on delete CASCADE
-) TABLESPACE pg_default;
-
-create index IF not exists teams_season_idx on public.teams using btree (season_id) TABLESPACE pg_default;
+CREATE TABLE public.games (
+  id bigint NOT NULL,
+  season_id bigint NOT NULL,
+  week integer,
+  home_team_id bigint,
+  away_team_id bigint,
+  kickoff_ts timestamp with time zone,
+  status text NOT NULL DEFAULT 'scheduled'::text CHECK (status = ANY (ARRAY['scheduled'::text, 'live'::text, 'final'::text])),
+  winner_team_id bigint,
+  CONSTRAINT games_pkey PRIMARY KEY (id),
+  CONSTRAINT games_home_team_id_fkey FOREIGN KEY (home_team_id) REFERENCES public.teams(id),
+  CONSTRAINT games_away_team_id_fkey FOREIGN KEY (away_team_id) REFERENCES public.teams(id),
+  CONSTRAINT games_winner_team_id_fkey FOREIGN KEY (winner_team_id) REFERENCES public.teams(id),
+  CONSTRAINT games_season_id_fkey FOREIGN KEY (season_id) REFERENCES public.seasons(id)
+);
+CREATE TABLE public.league_member_state (
+  id bigint NOT NULL DEFAULT nextval('league_member_state_id_seq'::regclass),
+  league_id bigint NOT NULL,
+  user_id uuid NOT NULL,
+  byes_used integer NOT NULL DEFAULT 0 CHECK (byes_used >= 0 AND byes_used <= 4),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT league_member_state_pkey PRIMARY KEY (id),
+  CONSTRAINT league_member_state_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT league_member_state_league_id_fkey FOREIGN KEY (league_id) REFERENCES public.leagues(id)
+);
+CREATE TABLE public.league_members (
+  id bigint NOT NULL DEFAULT nextval('league_members_id_seq'::regclass),
+  league_id bigint NOT NULL,
+  user_id uuid NOT NULL,
+  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['member'::text, 'admin'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT league_members_pkey PRIMARY KEY (id),
+  CONSTRAINT league_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT league_members_league_id_fkey FOREIGN KEY (league_id) REFERENCES public.leagues(id),
+  CONSTRAINT league_members_user_id_profiles_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(user_id)
+);
+CREATE TABLE public.league_team_values (
+  id bigint NOT NULL DEFAULT nextval('league_team_values_id_seq'::regclass),
+  league_id bigint,
+  team_id bigint,
+  points_value integer NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT league_team_values_pkey PRIMARY KEY (id),
+  CONSTRAINT league_team_values_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id),
+  CONSTRAINT league_team_values_league_id_fkey FOREIGN KEY (league_id) REFERENCES public.leagues(id)
+);
+CREATE TABLE public.leagues (
+  id bigint NOT NULL DEFAULT nextval('leagues_id_seq'::regclass),
+  name text NOT NULL,
+  visibility text NOT NULL DEFAULT 'private'::text CHECK (visibility = ANY (ARRAY['public'::text, 'private'::text])),
+  owner_id uuid NOT NULL,
+  season_id bigint NOT NULL,
+  join_code text,
+  rules_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  description text,
+  CONSTRAINT leagues_pkey PRIMARY KEY (id),
+  CONSTRAINT leagues_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES auth.users(id),
+  CONSTRAINT leagues_season_id_fkey FOREIGN KEY (season_id) REFERENCES public.seasons(id)
+);
+CREATE TABLE public.picks (
+  id bigint NOT NULL DEFAULT nextval('picks_id_seq'::regclass),
+  league_id bigint NOT NULL,
+  user_id uuid NOT NULL,
+  season_id bigint NOT NULL,
+  week integer NOT NULL CHECK (week >= 1 AND week <= 18),
+  game_id bigint,
+  picked_team_id bigint,
+  source text NOT NULL DEFAULT 'user'::text CHECK (source = ANY (ARRAY['user'::text, 'auto_bye'::text, 'forfeit'::text, 'admin'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  locked_at timestamp with time zone,
+  slot_number integer CHECK (slot_number = ANY (ARRAY[1, 2])),
+  is_bye boolean DEFAULT false,
+  CONSTRAINT picks_pkey PRIMARY KEY (id),
+  CONSTRAINT picks_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT picks_game_id_fkey FOREIGN KEY (game_id) REFERENCES public.games(id),
+  CONSTRAINT picks_picked_team_id_fkey FOREIGN KEY (picked_team_id) REFERENCES public.teams(id),
+  CONSTRAINT picks_season_id_fkey FOREIGN KEY (season_id) REFERENCES public.seasons(id),
+  CONSTRAINT picks_league_id_fkey FOREIGN KEY (league_id) REFERENCES public.leagues(id)
+);
+CREATE TABLE public.profiles (
+  user_id uuid NOT NULL,
+  display_name text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  avatar_url text,
+  CONSTRAINT profiles_pkey PRIMARY KEY (user_id),
+  CONSTRAINT profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.scores (
+  id bigint NOT NULL DEFAULT nextval('scores_id_seq'::regclass),
+  league_id bigint NOT NULL,
+  user_id uuid NOT NULL,
+  season_id bigint NOT NULL,
+  week integer NOT NULL,
+  points integer NOT NULL,
+  detail jsonb NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT scores_pkey PRIMARY KEY (id),
+  CONSTRAINT scores_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT scores_league_id_fkey FOREIGN KEY (league_id) REFERENCES public.leagues(id),
+  CONSTRAINT scores_season_id_fkey FOREIGN KEY (season_id) REFERENCES public.seasons(id)
+);
+CREATE TABLE public.seasons (
+  id bigint NOT NULL DEFAULT nextval('seasons_id_seq'::regclass),
+  year integer NOT NULL UNIQUE,
+  is_active boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT seasons_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.teams (
+  id bigint NOT NULL DEFAULT nextval('teams_id_seq'::regclass),
+  season_id bigint NOT NULL,
+  nfl_team_code text NOT NULL,
+  display_name text NOT NULL,
+  points_value integer NOT NULL DEFAULT 0 UNIQUE,
+  logo text,
+  CONSTRAINT teams_pkey PRIMARY KEY (id),
+  CONSTRAINT teams_season_id_fkey FOREIGN KEY (season_id) REFERENCES public.seasons(id)
+);

@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,7 +42,6 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
   // Form state
   const [formData, setFormData] = useState({
     name: "",
-    description: "",
     visibility: "private" as "public" | "private",
     useCustomPoints: false,
     customTeamValues: {} as Record<string, number>,
@@ -135,7 +133,6 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
         .from("leagues")
         .insert({
           name: formData.name.trim(),
-          description: formData.description.trim() || null,
           visibility: formData.visibility,
           owner_id: userId,
           season_id: seasonId,
@@ -252,22 +249,7 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              placeholder="Describe your league..."
-              className="bg-input/50 backdrop-blur-sm border border-white/50"
-              rows={3}
-            />
-          </div>
+          
 
           <div className="space-y-3">
             <Label>League Visibility</Label>

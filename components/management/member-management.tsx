@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
-import { Users, UserMinus, Crown, Copy, RefreshCw, AlertTriangle } from "lucide-react"
+import { Users, UserMinus, Crown, Copy, RefreshCw, AlertTriangle, Share2, Mail, MessageCircle } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +43,7 @@ export function MemberManagement({ leagueId, league, onLeagueUpdate }: MemberMan
   const [removingMember, setRemovingMember] = useState<string | null>(null)
   const [newJoinCode, setNewJoinCode] = useState("")
   const [generatingCode, setGeneratingCode] = useState(false)
+  const [copiedShare, setCopiedShare] = useState(false)
 
   useEffect(() => {
     fetchMembers()
@@ -184,6 +185,56 @@ export function MemberManagement({ leagueId, league, onLeagueUpdate }: MemberMan
     navigator.clipboard.writeText(league.join_code)
   }
 
+  // Sharing helpers
+  const getSiteUrl = () =>
+    (process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "")).replace(/\/$/, "")
+
+  const buildShare = () => {
+    const siteUrl = getSiteUrl()
+    const link = `${siteUrl}/leagues/join?code=${encodeURIComponent(league.join_code || "")}`
+    const text = `Join my league on NFL Pick Two with code ${league.join_code} here ${link}`
+    return { link, text }
+  }
+
+  const shareViaWebShare = async () => {
+    try {
+      const { link, text } = buildShare()
+      if (navigator.share) {
+        await navigator.share({ title: "NFL Pick Two", text, url: link })
+      } else {
+        await navigator.clipboard.writeText(text)
+      }
+    } catch (e) {
+      console.error("Share failed", e)
+    }
+  }
+
+  const shareByEmail = () => {
+    const { text } = buildShare()
+    const subject = encodeURIComponent("Join my NFL Pick Two league")
+    const body = encodeURIComponent(text)
+    window.location.href = `mailto:?subject=${subject}&body=${body}`
+  }
+
+  const shareBySMS = () => {
+    const { text } = buildShare()
+    const body = encodeURIComponent(text)
+    // sms URI schemes vary; this form works broadly
+    const smsUrl = `sms:?&body=${body}`
+    window.location.href = smsUrl
+  }
+
+  const copyShareMessage = async () => {
+    const { text } = buildShare()
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedShare(true)
+      setTimeout(() => setCopiedShare(false), 1200)
+    } catch (e) {
+      console.error("Clipboard write failed", e)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -231,6 +282,56 @@ export function MemberManagement({ leagueId, league, onLeagueUpdate }: MemberMan
                   </AlertDescription>
                 </Alert>
               )}
+            </div>
+
+            {/* Share controls */}
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <Button size="sm" onClick={shareViaWebShare}>
+                <Share2 className="h-4 w-4 mr-2" /> Share Invite
+              </Button>
+              {/* Use anchors so the OS opens the mail/text apps reliably */}
+              <Button asChild variant="outline" size="sm">
+                {(() => {
+                  const { text } = buildShare()
+                  const subject = encodeURIComponent("Join my NFL Pick Two league")
+                  const body = encodeURIComponent(text)
+                  return (
+                    <a href={`mailto:?subject=${subject}&body=${body}`}>
+                      <Mail className="h-4 w-4 mr-2" /> Email
+                    </a>
+                  )
+                })()}
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                {(() => {
+                  const { text } = buildShare()
+                  const body = encodeURIComponent(text)
+                  // sms URI schemes vary across platforms; this generally works
+                  const href = `sms:?&body=${body}`
+                  return (
+                    <a href={href}>
+                      <MessageCircle className="h-4 w-4 mr-2" /> Text
+                    </a>
+                  )
+                })()}
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyShareMessage}
+                  className={copiedShare ? "bg-emerald-500 text-white hover:bg-emerald-600" : ""}
+                >
+                  <Copy className="h-4 w-4 mr-2" /> {copiedShare ? "Copied" : "Copy Message"}
+                </Button>
+                <span
+                  className={`text-emerald-500 text-sm transition-opacity duration-200 ${
+                    copiedShare ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  Copied!
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>

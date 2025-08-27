@@ -27,10 +27,17 @@ export default function AuthPage() {
     setMessage("");
 
     try {
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (typeof window !== "undefined"
+          ? window.location.origin
+          : "http://localhost:3000");
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: "http://localhost:3000/dashboard",
+          // Always land on our callback page, which will redirect by role
+          emailRedirectTo: `${siteUrl}/auth/callback`,
         },
       });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -28,6 +28,7 @@ import { Badge } from "../ui/badge";
 
 interface WeeklyPicksInterfaceProps {
   userId: string;
+  leagueId?: string; // optional: when provided (from route), prefer and lock selection
 }
 
 interface GameData {
@@ -72,11 +73,13 @@ interface AllPicksData {
   is_bye: boolean;
 }
 
-export function WeeklyPicksInterface({ userId }: WeeklyPicksInterfaceProps) {
+export function WeeklyPicksInterface({ userId, leagueId }: WeeklyPicksInterfaceProps) {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(
     null
   );
+  // Only set the initial league selection once (prefer route league if provided)
+  const initialLeagueSet = useRef(false);
   const [expandedWeek, setExpandedWeek] = useState<number | null>(null);
   const [games, setGames] = useState<GameData[]>([]);
   const [picks, setPicks] = useState<PickData[]>([]);
@@ -122,15 +125,39 @@ export function WeeklyPicksInterface({ userId }: WeeklyPicksInterfaceProps) {
       if (leagueError) {
         console.error("Error fetching leagues:", leagueError);
       } else if (leagueData) {
-        setLeagues(leagueData);
-        if (leagueData.length > 0 && !selectedLeagueId) {
-          setSelectedLeagueId(leagueData[0].id);
+        // Normalize IDs to strings for Select consistency
+        const normalized = (leagueData || []).map((l: any) => ({
+          id: String(l.id),
+          name: l.name as string,
+        })) as League[];
+        setLeagues(normalized);
+        // Prefer route league only once on initial mount
+        if (!initialLeagueSet.current) {
+          if (leagueId) {
+            setSelectedLeagueId(String(leagueId));
+          } else if (normalized.length > 0) {
+            setSelectedLeagueId(normalized[0].id);
+          }
+          initialLeagueSet.current = true;
         }
       }
     };
 
     fetchLeagues();
-  }, [userId, selectedLeagueId]);
+  }, [userId, leagueId]);
+
+  // Do NOT re-lock selection on subsequent renders to allow user changes.
+
+  // Reset week-specific state when selected league changes
+  useEffect(() => {
+    setExpandedWeek(null);
+    setGames([]);
+    setPicks([]);
+    setSelectedTeams([]);
+    setByesUsed(0);
+    setUsingBye(false);
+    setAllPicks(new Map());
+  }, [selectedLeagueId]);
 
   const fetchWeekData = useCallback(
     async (week: number) => {
@@ -185,7 +212,7 @@ export function WeeklyPicksInterface({ userId }: WeeklyPicksInterfaceProps) {
         const { data: picksData, error: picksError } = await supabase
           .from("picks")
           .select("*")
-          .eq("league_id", selectedLeagueId)
+          .eq("league_id", Number(selectedLeagueId))
           .eq("user_id", userId)
           .eq("week", week)
           .eq("season_id", seasonId);
@@ -207,7 +234,7 @@ export function WeeklyPicksInterface({ userId }: WeeklyPicksInterfaceProps) {
         const { data: usedTeamsData, error: usedError } = await supabase
           .from("picks")
           .select("picked_team_id, week")
-          .eq("league_id", selectedLeagueId)
+          .eq("league_id", Number(selectedLeagueId))
           .eq("user_id", userId)
           .eq("season_id", seasonId)
           .neq("week", week);
@@ -223,7 +250,7 @@ export function WeeklyPicksInterface({ userId }: WeeklyPicksInterfaceProps) {
         const { data: memberState, error: stateError } = await supabase
           .from("league_member_state")
           .select("byes_used")
-          .eq("league_id", selectedLeagueId)
+          .eq("league_id", Number(selectedLeagueId))
           .eq("user_id", userId)
           .single();
 
@@ -264,7 +291,7 @@ export function WeeklyPicksInterface({ userId }: WeeklyPicksInterfaceProps) {
       const { data, error } = await supabase
         .from("picks")
         .select("week, picked_team_id, is_bye, teams(logo)")
-        .eq("league_id", selectedLeagueId)
+        .eq("league_id", Number(selectedLeagueId))
         .eq("user_id", userId)
         .eq("season_id", seasonId);
 
@@ -407,7 +434,7 @@ export function WeeklyPicksInterface({ userId }: WeeklyPicksInterfaceProps) {
         await supabase
           .from("league_member_state")
           .update({ byes_used: byesUsed + 1 })
-          .eq("league_id", selectedLeagueId)
+          .eq("league_id", Number(selectedLeagueId))
           .eq("user_id", userId);
         slots -= 1;
       }
@@ -444,7 +471,7 @@ export function WeeklyPicksInterface({ userId }: WeeklyPicksInterfaceProps) {
         await supabase
           .from("league_member_state")
           .update({ byes_used: Math.max(0, byesUsed - 1) })
-          .eq("league_id", selectedLeagueId)
+          .eq("league_id", Number(selectedLeagueId))
           .eq("user_id", userId);
       }
 
@@ -471,8 +498,8 @@ export function WeeklyPicksInterface({ userId }: WeeklyPicksInterfaceProps) {
         </div>
         <div className="w-64">
           <Select
-            onValueChange={setSelectedLeagueId}
-            value={selectedLeagueId || ""}
+            onValueChange={(val) => setSelectedLeagueId(val)}
+            value={selectedLeagueId ?? undefined}
             disabled={leagues.length === 0}
           >
             <SelectTrigger>

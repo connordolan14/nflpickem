@@ -224,10 +224,10 @@ export function LeagueStandings({ leagueId, userId }: LeagueStandingsProps) {
         </div>
             
         <div className="flex items-center gap-2">
-          <Button onClick={exportToCSV} variant="outline" size="sm">
+          {/* <Button onClick={exportToCSV} variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export CSV
-          </Button>
+          </Button> */}
           <Button asChild variant="outline" size="sm">
             <Link href={`/leagues/${leagueId}/picks`}>Make Picks</Link>
           </Button>

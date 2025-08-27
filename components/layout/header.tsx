@@ -37,12 +37,14 @@ export function Header() {
                 >
                   Leagues
                 </Link>
-                <Link
-                  href="/admin"
-                  className="text-foreground hover:text-primary transition-colors"
-                >
-                  Admin
-                </Link>
+                {user.role === "admin" && (
+                  <Link
+                    href="/admin"
+                    className="text-foreground hover:text-primary transition-colors"
+                  >
+                    Admin
+                  </Link>
+                )}
                 <Button onClick={signOut} variant="outline" size="sm">
                   Sign Out
                 </Button>
@@ -104,12 +106,14 @@ export function Header() {
                   >
                     Leagues
                   </Link>
-                  <Link
-                    href="/admin"
-                    className="text-foreground hover:text-primary transition-colors"
-                  >
-                    Admin
-                  </Link>
+                  {user.role === "admin" && (
+                    <Link
+                      href="/admin"
+                      className="text-foreground hover:text-primary transition-colors"
+                    >
+                      Admin
+                    </Link>
+                  )}
                   <Button
                     onClick={() => setIsProfileModalOpen(true)}
                     variant="ghost"

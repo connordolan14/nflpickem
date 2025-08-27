@@ -1,40 +1,179 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
 import {
   Users,
   Trophy,
   TrendingUp,
   Activity,
   Shield,
-  Settings,
   Plus,
   Trash2,
   Edit,
   Eye,
-  BarChart3,
   Calendar,
   Target,
   Award,
 } from "lucide-react";
 
+interface Profile {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+interface League {
+  id: string;
+  name: string;
+  visibility: "public" | "private";
+  owner_id: string;
+  season_id: number;
+  join_code: string | null;
+  rules_json: any;
+  description: string | null;
+  created_at: string;
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [leagues, setLeagues] = useState<League[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalLeagues: 0,
+    activeLeagues: 0,
+    totalPicks: 0,
+    totalGames: 0,
+    revenue: 0,
+    growthRate: 0,
+  });
 
-  const stats = {
-    totalUsers: 1247,
-    activeUsers: 892,
-    totalLeagues: 156,
-    activeLeagues: 134,
-    totalPicks: 15420,
-    totalGames: 272,
-    revenue: 12450,
-    growthRate: 23.5,
+  useEffect(() => {
+    fetchProfiles();
+    fetchLeagues();
+    fetchStats();
+  }, []);
+
+  const fetchProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching profiles:", error);
+        return;
+      }
+
+      setProfiles(data || []);
+    } catch (error) {
+      console.error("Error fetching profiles:", error);
+    }
   };
+
+  const fetchLeagues = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("leagues")
+        .select(
+          "id, name, visibility, owner_id, season_id, join_code, rules_json, description, created_at"
+        )
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching leagues:", error);
+        return;
+      }
+
+      setLeagues(data || []);
+    } catch (error) {
+      console.error("Error fetching leagues:", error);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      // Fetch total users
+      const { count: totalUsers } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true });
+
+      // Fetch total leagues
+      const { count: totalLeagues } = await supabase
+        .from("leagues")
+        .select("*", { count: "exact", head: true });
+
+      // Fetch total picks
+      const { count: totalPicks } = await supabase
+        .from("picks")
+        .select("*", { count: "exact", head: true });
+
+      // Fetch total games
+      const { count: totalGames } = await supabase
+        .from("games")
+        .select("*", { count: "exact", head: true });
+
+      // Calculate active users (users who have made picks in the last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: activeUsersData } = await supabase
+        .from("picks")
+        .select("user_id")
+        .gte("created_at", thirtyDaysAgo.toISOString());
+
+      // Get unique active users
+      const activeUsers = activeUsersData
+        ? new Set(activeUsersData.map((pick) => pick.user_id)).size
+        : 0;
+
+      // Calculate active leagues (leagues with picks in the last 30 days)
+      const { data: activeLeaguesData } = await supabase
+        .from("picks")
+        .select("league_id")
+        .gte("created_at", thirtyDaysAgo.toISOString());
+
+      // Get unique active leagues
+      const activeLeagues = activeLeaguesData
+        ? new Set(activeLeaguesData.map((pick) => pick.league_id)).size
+        : 0;
+
+      setStats({
+        totalUsers: totalUsers || 0,
+        activeUsers: activeUsers || 0,
+        totalLeagues: totalLeagues || 0,
+        activeLeagues: activeLeagues || 0,
+        totalPicks: totalPicks || 0,
+        totalGames: totalGames || 0,
+        revenue: 0, // This would need to be calculated based on your business logic
+        growthRate: 0, // This would need to be calculated based on historical data
+      });
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading admin dashboard...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -52,12 +191,25 @@ export default function AdminPage() {
         onValueChange={setActiveTab}
         className="space-y-6"
       >
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="leagues">Leagues</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+          <TabsTrigger
+            value="overview"
+            className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all duration-200"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="users"
+            className="data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-green-100 dark:hover:bg-green-900/30 transition-all duration-200"
+          >
+            Users
+          </TabsTrigger>
+          <TabsTrigger
+            value="leagues"
+            className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-200"
+          >
+            Leagues
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -131,45 +283,49 @@ export default function AdminPage() {
         <TabsContent value="users" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>User Management</CardTitle>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add User
-                </Button>
-              </div>
+              <CardTitle>User Management</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">ahagy2015</p>
-                      <p className="text-sm text-muted-foreground">
-                        Premium Member
-                      </p>
-                    </div>
+                {profiles.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No users found
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">Active</Badge>
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
+                ) : (
+                  profiles.map((profile) => (
+                    <div
+                      key={profile.user_id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                          {profile.avatar_url ? (
+                            <img
+                              src={profile.avatar_url}
+                              alt={profile.display_name}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <Users className="h-5 w-5 text-primary" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">{profile.display_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Joined{" "}
+                            {new Date(profile.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">Active</Badge>
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -178,102 +334,49 @@ export default function AdminPage() {
         <TabsContent value="leagues" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>League Management</CardTitle>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create League
-                </Button>
-              </div>
+              <CardTitle>League Management</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Trophy className="h-8 w-8 text-primary" />
-                    <div>
-                      <p className="font-medium">Fantasy Football Pros</p>
-                      <p className="text-sm text-muted-foreground">
-                        24 members • $50 entry fee
-                      </p>
-                    </div>
+                {leagues.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No leagues found (Total: {leagues.length})
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="default">Active</Badge>
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
+                ) : (
+                  leagues.map((league) => (
+                    <div
+                      key={league.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                User Growth
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span>This Month</span>
-                  <span className="font-bold text-green-600">
-                    +{stats.growthRate}%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Last Month</span>
-                  <span className="font-bold text-blue-600">+18.2%</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                System Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Maintenance Mode</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Enable maintenance mode for system updates
-                    </p>
-                  </div>
-                  <Button variant="outline">Enable</Button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Auto Backup</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Automatically backup database every 6 hours
-                    </p>
-                  </div>
-                  <Button variant="default">Configure</Button>
-                </div>
+                      <div className="flex items-center gap-3">
+                        <Trophy className="h-8 w-8 text-primary" />
+                        <div>
+                          <p className="font-medium">
+                            {league.name || "Unnamed League"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {league.visibility} • Created{" "}
+                            {new Date(league.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            league.visibility === "public"
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {league.visibility}
+                        </Badge>
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

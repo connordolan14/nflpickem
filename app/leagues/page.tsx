@@ -46,6 +46,7 @@ export default function LeaguesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>("")
   const [joiningId, setJoiningId] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
   // Private join by code
   const [joinCode, setJoinCode] = useState("")
   const [codeLoading, setCodeLoading] = useState(false)
@@ -120,6 +121,7 @@ export default function LeaguesPage() {
               ...(r.leagues as LeagueRow),
             })) || []
           setLeagues(sortLeagues(rows, sort))
+          setHasMore(rows.length === pageSize)
         } else {
           // All = public discovery
           let query = supabase
@@ -142,7 +144,9 @@ export default function LeaguesPage() {
           const { data, error } = await query
           if (error) throw error
           if (cancelled) return
-          setLeagues(sortLeagues((data as LeagueRow[]) || [], sort))
+          const rows = ((data as LeagueRow[]) || [])
+          setLeagues(sortLeagues(rows, sort))
+          setHasMore(rows.length === pageSize)
         }
       } catch (e: any) {
         console.error("Failed to load leagues", e)
@@ -405,11 +409,12 @@ export default function LeaguesPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {leagues.map((league) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {leagues.map((league) => (
                     <LeagueCard
                       key={league.id}
                       league={league}
+          seasonYear={seasons.find((s) => s.id === (league as any).season_id)?.year}
             onJoin={() => handleJoin(league)}
             openJoinModal={() => setJoinOpen(true)}
                       joining={joiningId === league.id}
@@ -425,7 +430,7 @@ export default function LeaguesPage() {
                     Previous
                   </Button>
                   <span className="text-sm text-muted-foreground">Page {page + 1}</span>
-                  <Button variant="outline" onClick={() => setPage((p) => p + 1)}>
+                  <Button variant="outline" disabled={!hasMore} onClick={() => setPage((p) => p + 1)}>
                     Next
                   </Button>
                 </div>
@@ -483,11 +488,13 @@ export default function LeaguesPage() {
 
 function LeagueCard({
   league,
+  seasonYear,
   onJoin,
   openJoinModal,
   joining,
 }: {
   league: LeagueRow
+  seasonYear?: number
   onJoin: () => void
   openJoinModal: () => void
   joining: boolean
@@ -516,7 +523,7 @@ function LeagueCard({
       <CardContent>
         <div className="flex items-center justify-between mb-4 text-sm text-muted-foreground">
           <div className="flex items-center"><Users className="h-4 w-4 mr-1" /> {memberCount} members</div>
-          <div className="flex items-center"><Calendar className="h-4 w-4 mr-1" /> Season {String((league as any).season_id)}</div>
+          <div className="flex items-center"><Calendar className="h-4 w-4 mr-1" /> Season {seasonYear ?? "—"}</div>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline" className="flex-1 bg-transparent">

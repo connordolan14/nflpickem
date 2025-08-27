@@ -20,6 +20,7 @@ import {
   Target,
   Award,
 } from "lucide-react";
+import { TeamsDefaultsAdmin } from "@/components/admin/teams-defaults";
 
 interface Profile {
   user_id: string;
@@ -263,7 +264,7 @@ export default function AdminPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            {/* <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Revenue</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -276,7 +277,7 @@ export default function AdminPage() {
                   +12% from last month
                 </p>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </TabsContent>
 

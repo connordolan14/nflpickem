@@ -77,12 +77,13 @@ export function LeagueStatistics({ leagueId }: LeagueStatisticsProps) {
       })
 
       const memberActivityData: MemberActivity[] =
-        membersData?.map((member) => {
-          const activity = activityMap.get(member.user_id) || { picks: 0, weeks: new Set() }
+        membersData?.map((member: any) => {
+          const activity = activityMap.get(member.user_id) || { picks: 0, weeks: new Set<number>() }
           const totalWeeks = Math.max(activity.weeks.size, 1)
+          const prof = Array.isArray(member.profiles) ? member.profiles[0] : member.profiles
           return {
             user_id: member.user_id,
-            display_name: member.profiles.display_name,
+            display_name: prof?.display_name ?? "Unknown",
             picks_submitted: activity.picks,
             total_weeks: totalWeeks,
             submission_rate: (activity.picks / (totalWeeks * 2)) * 100, // 2 picks per week
@@ -95,9 +96,11 @@ export function LeagueStatistics({ leagueId }: LeagueStatisticsProps) {
       const teamPickCounts = new Map<string, number>()
       const totalPicks = picksData?.length || 1
 
-      picksData?.forEach((pick) => {
-        if (pick.teams?.display_name) {
-          teamPickCounts.set(pick.teams.display_name, (teamPickCounts.get(pick.teams.display_name) || 0) + 1)
+      picksData?.forEach((pick: any) => {
+        const teamRel = Array.isArray(pick.teams) ? pick.teams[0] : pick.teams
+        const name = teamRel?.display_name
+        if (name) {
+          teamPickCounts.set(name, (teamPickCounts.get(name) || 0) + 1)
         }
       })
 
@@ -112,14 +115,74 @@ export function LeagueStatistics({ leagueId }: LeagueStatisticsProps) {
       setPopularTeams(teamPopularityData.slice(0, 5))
       setUnpopularTeams(teamPopularityData.slice(-5).reverse())
 
-      // Mock weekly averages (in real app, would calculate from scores table)
-      const mockWeeklyAverages: WeeklyAverage[] = Array.from({ length: 8 }, (_, i) => ({
-        week: i + 1,
-        average_score: Math.floor(Math.random() * 20) + 10,
-        total_picks: membersData?.length * 2 || 0,
-      }))
+      // Real weekly averages
+      const memberCount = Math.max(membersData?.length || 0, 1)
 
-      setWeeklyAverages(mockWeeklyAverages)
+      // 1) Pull persisted weekly scores per user
+      const { data: scoreRows, error: scoresErr } = await supabase
+        .from("scores")
+        .select("user_id, week, points")
+        .eq("league_id", leagueId)
+      if (scoresErr) throw scoresErr
+
+      const sumByWeek: Map<number, number> = new Map()
+      ;(scoreRows || []).forEach((r: any) => {
+        const w = Number(r.week)
+        sumByWeek.set(w, (sumByWeek.get(w) || 0) + Number(r.points || 0))
+      })
+
+      // 2) Live fallback for weeks missing in scores: compute from picks + final games with league overrides
+      const { data: picksLive, error: picksLiveErr } = await supabase
+        .from("picks")
+        .select(`user_id, week, is_bye, picked_team_id,
+                 games(winner_team_id, status),
+                 teams:picked_team_id(points_value)`)
+        .eq("league_id", leagueId)
+      if (picksLiveErr) throw picksLiveErr
+
+      const { data: ltv, error: ltvErr } = await supabase
+        .from("league_team_values")
+        .select("team_id, points_value")
+        .eq("league_id", leagueId)
+      if (ltvErr) throw ltvErr
+      const ltvMap = new Map<string, number>()
+      ;(ltv || []).forEach((r: any) => ltvMap.set(String(r.team_id), r.points_value as number))
+
+      // Aggregate live user-week totals and total picks per week
+      const liveSumByWeek: Map<number, number> = new Map()
+      const picksCountByWeek: Map<number, number> = new Map() // non-bye picks submitted
+      for (const p of picksLive || []) {
+        const wk = Number(p.week)
+        if (!p.is_bye) picksCountByWeek.set(wk, (picksCountByWeek.get(wk) || 0) + 1)
+        if (p.is_bye) continue
+        const game = Array.isArray(p.games) ? p.games[0] : p.games
+        const team = Array.isArray(p.teams) ? p.teams[0] : p.teams
+        const winnerId = game?.winner_team_id
+        const isFinal = (game?.status === "final") || (winnerId != null)
+        if (!isFinal) continue
+        const pickedId = p.picked_team_id
+        const win = String(pickedId) === String(winnerId)
+        if (!win) continue
+        const override = pickedId ? ltvMap.get(String(pickedId)) : undefined
+        const baseVal = team?.points_value ?? 0
+        liveSumByWeek.set(wk, (liveSumByWeek.get(wk) || 0) + (override ?? baseVal ?? 0))
+      }
+
+      // Merge: prefer persisted scores if present; otherwise use live sums
+      const weeks = new Set<number>([
+        ...Array.from(sumByWeek.keys()),
+        ...Array.from(liveSumByWeek.keys()),
+      ])
+
+      const averages: WeeklyAverage[] = Array.from(weeks)
+        .sort((a, b) => a - b)
+        .map((w) => ({
+          week: w,
+          average_score: (sumByWeek.has(w) ? sumByWeek.get(w)! : (liveSumByWeek.get(w) || 0)) / memberCount,
+          total_picks: picksCountByWeek.get(w) || 0,
+        }))
+
+      setWeeklyAverages(averages)
     } catch (error) {
       console.error("Error fetching statistics:", error)
     } finally {

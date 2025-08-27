@@ -18,6 +18,8 @@ interface GameData {
   kickoff_ts: string;
   status: string;
   winner_team_id: string | null;
+  home_logo: string | null;
+  away_logo: string | null;
 }
 
 interface UsedTeam {
@@ -90,18 +92,6 @@ export function GameCard({
     return baseClass;
   };
 
-  const logoUrls = [
-    "https://media.api-sports.io/american-football/teams/1.png",
-    "https://media.api-sports.io/american-football/teams/2.png",
-    "https://media.api-sports.io/american-football/teams/3.png",
-    "https://media.api-sports.io/american-football/teams/4.png",
-    "https://media.api-sports.io/american-football/teams/5.png",
-    "https://media.api-sports.io/american-football/teams/6.png",
-  ];
-
-  const getAwayLogo = (index: number) => logoUrls[index % 3];
-  const getHomeLogo = (index: number) => logoUrls[3 + (index % 3)];
-
   return (
     <Card className="backdrop-blur-sm bg-card/50 border-border/50">
       <CardContent className="p-4">
@@ -118,7 +108,7 @@ export function GameCard({
           )}
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
           {/* Away Team */}
           <div
             className={getTeamCardClass(
@@ -136,12 +126,12 @@ export function GameCard({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <img
-                  src={getAwayLogo(gameIndex)}
+                  src={game.away_logo || "/placeholder-logo.svg"}
                   alt={game.away_team}
                   className="w-8 h-8 rounded object-contain bg-white"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    target.src = getAwayLogo(gameIndex);
+                    target.src = "/placeholder-logo.svg";
                   }}
                 />
                 <div>
@@ -161,7 +151,12 @@ export function GameCard({
             </div>
           </div>
 
-          <div className="text-muted-foreground font-medium">@</div>
+          <div className="text-muted-foreground font-medium self-center sm:hidden">
+            vs
+          </div>
+          <div className="text-muted-foreground font-medium hidden sm:block">
+            @
+          </div>
 
           {/* Home Team */}
           <div
@@ -180,12 +175,12 @@ export function GameCard({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <img
-                  src={getHomeLogo(gameIndex)}
+                  src={game.home_logo || "/placeholder-logo.svg"}
                   alt={game.home_team}
                   className="w-8 h-8 rounded object-contain bg-white"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    target.src = getHomeLogo(gameIndex);
+                    target.src = "/placeholder-logo.svg";
                   }}
                 />
                 <div>
@@ -209,3 +204,4 @@ export function GameCard({
     </Card>
   );
 }
+

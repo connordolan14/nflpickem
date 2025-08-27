@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,6 +20,14 @@ export default function JoinLeaguePage() {
   const [joinCode, setJoinCode] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  // Prefill from ?code= in URL
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    const code = url.searchParams.get("code")
+    if (code) setJoinCode(code.toUpperCase())
+  }, [])
 
   const handleJoinByCode = async (e: React.FormEvent) => {
     e.preventDefault()

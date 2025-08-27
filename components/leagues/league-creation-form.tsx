@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,7 +42,6 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
   // Form state
   const [formData, setFormData] = useState({
     name: "",
-    description: "",
     visibility: "private" as "public" | "private",
     useCustomPoints: false,
     customTeamValues: {} as Record<string, number>,
@@ -56,7 +54,7 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
         const [teamsRes, season] = await Promise.all([
           supabase
             .from("teams")
-            .select("id, nfl_team_code, display_name, points_value")
+            .select("id, nfl_team_code, display_name, points_value, logo")
             .order("display_name"),
           fetchCurrentSeasonId(supabase),
         ]);
@@ -104,11 +102,6 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
 
     if (formData.useCustomPoints) {
       const values = Object.values(formData.customTeamValues);
-      const uniqueValues = new Set(values);
-      if (values.length !== uniqueValues.size) {
-        setError("All team point values must be unique");
-        return false;
-      }
       if (values.some((v) => v < 1 || v > 32)) {
         setError("Team point values must be between 1 and 32");
         return false;
@@ -140,7 +133,6 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
         .from("leagues")
         .insert({
           name: formData.name.trim(),
-          description: formData.description.trim() || null,
           visibility: formData.visibility,
           owner_id: userId,
           season_id: seasonId,
@@ -257,22 +249,7 @@ export function LeagueCreationForm({ userId }: LeagueCreationFormProps) {
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              placeholder="Describe your league..."
-              className="bg-input/50 backdrop-blur-sm border border-white/50"
-              rows={3}
-            />
-          </div>
+          
 
           <div className="space-y-3">
             <Label>League Visibility</Label>

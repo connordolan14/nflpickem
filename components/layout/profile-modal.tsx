@@ -129,7 +129,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           </Card>
 
           {/* Profile Details */}
-          <Card>
+          {/* <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Details</CardTitle>
             </CardHeader>
@@ -174,10 +174,31 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 Member since {profileData.joinDate}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}<div className="flex-1">
+                  {isEditing ? (
+                    <Input
+                      value={profileData.displayName}
+                      onChange={(e) =>
+                        setProfileData({
+                          ...profileData,
+                          displayName: e.target.value,
+                        })
+                      }
+                      className="text-lg font-semibold"
+                    />
+                  ) : (
+                    <h3 className="text-lg font-semibold">
+                      {profileData.displayName}
+                    </h3>
+                  )}
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    {profileData.email}
+                  </p>
+                </div>
 
           {/* Stats Preview */}
-          <Card>
+          {/* <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Quick Stats</CardTitle>
             </CardHeader>
@@ -199,7 +220,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-2">

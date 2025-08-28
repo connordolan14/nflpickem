@@ -9,15 +9,117 @@ BEGIN
 END;
 $$;
 
+-- 6) Helper to check if current user is admin without triggering RLS recursion
+-- This runs as definer (owner) and bypasses RLS on profiles.
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.user_id = auth.uid() AND p.role = 'admin'
+  );
+$$;
+
+-- Grant execute to authenticated users
+GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated, service_role;
+
+-- 7) RPC: get league by join code without relying on leagues SELECT policy
+-- Returns minimal fields and bypasses RLS safely.
+CREATE OR REPLACE FUNCTION public.get_league_by_join_code(code text)
+RETURNS TABLE (id bigint, name text, visibility text)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT l.id, l.name, l.visibility
+  FROM public.leagues l
+  WHERE l.join_code = code
+  LIMIT 1;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_league_by_join_code(text) TO anon, authenticated, service_role;
+
+-- 8) BEFORE INSERT trigger: set leagues.owner_id from auth.uid() if missing
+CREATE OR REPLACE FUNCTION public.set_league_owner_from_auth()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.owner_id IS NULL THEN
+    NEW.owner_id := auth.uid();
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS t_leagues_bi_set_owner ON public.leagues;
+CREATE TRIGGER t_leagues_bi_set_owner
+BEFORE INSERT ON public.leagues
+FOR EACH ROW
+EXECUTE FUNCTION public.set_league_owner_from_auth();
+
 -- 2) Picks trigger function referenced by t_picks_biu (kept minimal and safe)
 CREATE OR REPLACE FUNCTION public.picks_before_insert_update()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  RETURN NEW;
+  -- Enforce: max 2 picks per week per user per league
+  -- and no picks/changes after game kickoff time.
+  DECLARE
+    v_kickoff timestamptz;
+    v_existing_count int;
+    v_max_per_week int;
+  BEGIN
+    -- derive max per week: use league.rules_json->picks_per_week when valid, else default 2
+    SELECT COALESCE(NULLIF((l.rules_json->>'picks_per_week')::int, NULL), 2)
+      INTO v_max_per_week
+    FROM public.leagues l
+    WHERE l.id = NEW.league_id;
+    IF v_max_per_week IS NULL THEN
+      v_max_per_week := 2;
+    END IF;
+    -- fetch kickoff time
+    SELECT g.kickoff_ts INTO v_kickoff FROM public.games g WHERE g.id = NEW.game_id;
+    IF v_kickoff IS NOT NULL AND v_kickoff <= NOW() THEN
+      RAISE EXCEPTION 'Picks are locked for this game (kickoff passed)';
+    END IF;
+
+    -- if updating, ensure existing row also not past kickoff
+    IF TG_OP = 'UPDATE' THEN
+      SELECT g.kickoff_ts INTO v_kickoff FROM public.games g WHERE g.id = OLD.game_id;
+      IF v_kickoff IS NOT NULL AND v_kickoff <= NOW() THEN
+        RAISE EXCEPTION 'Picks are locked for this game (kickoff passed)';
+      END IF;
+    END IF;
+
+    -- count existing picks for this user/league/season/week excluding current row id (on update)
+    SELECT COUNT(*) INTO v_existing_count
+    FROM public.picks p
+    WHERE p.user_id = NEW.user_id
+      AND p.league_id = NEW.league_id
+      AND p.season_id = NEW.season_id
+      AND p.week = NEW.week
+      AND (TG_OP = 'INSERT' OR p.id <> NEW.id);
+
+  IF v_existing_count >= v_max_per_week THEN
+      RAISE EXCEPTION 'Max picks per week (% %) reached', v_max_per_week, 'picks';
+    END IF;
+
+    RETURN NEW;
+  END;
 END;
 $$;
+
+-- Attach trigger to picks for inserts and updates
+DROP TRIGGER IF EXISTS t_picks_biu_enforce_rules ON public.picks;
+CREATE TRIGGER t_picks_biu_enforce_rules
+BEFORE INSERT OR UPDATE ON public.picks
+FOR EACH ROW
+EXECUTE FUNCTION public.picks_before_insert_update();
 
 -- 3) Lock picks for games that have started
 CREATE OR REPLACE FUNCTION public.lock_picks_for_started_games()

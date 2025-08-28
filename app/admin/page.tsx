@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,6 +43,9 @@ interface League {
 }
 
 export default function AdminPage() {
+  const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -58,10 +62,32 @@ export default function AdminPage() {
   });
 
   useEffect(() => {
-    fetchProfiles();
-    fetchLeagues();
-    fetchStats();
-  }, []);
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/auth");
+        return;
+      }
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error || profile?.role !== "admin") {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setIsAdmin(true);
+      setAuthChecked(true);
+      // Now safe to load admin data
+      fetchProfiles();
+      fetchLeagues();
+      fetchStats();
+    };
+    init();
+  }, [router]);
 
   const fetchProfiles = async () => {
     try {
@@ -166,7 +192,17 @@ export default function AdminPage() {
     }
   };
 
-  if (loading) {
+  if (!authChecked) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Checking permissions...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading && isAdmin) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center h-64">
@@ -241,9 +277,9 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.activeLeagues}</div>
-                <p className="text-xs text-muted-foreground">
+                {/* <p className="text-xs text-muted-foreground">
                   {stats.totalLeagues} total leagues
-                </p>
+                </p> */}
               </CardContent>
             </Card>
 

@@ -97,19 +97,19 @@ export function LeagueManagement({ leagueId, userId }: LeagueManagementProps) {
         <CardContent className="p-0">
           <Tabs defaultValue="members" className="w-full">
             <TabsList className="grid w-full grid-cols-4 rounded-none border-b">
-              <TabsTrigger value="members" className="flex items-center gap-2">
+              <TabsTrigger value="members" className="flex items-center  gap-2">
                 <Users className="h-4 w-4" />
                 Members
               </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center gap-2">
+              <TabsTrigger value="settings" className="flex items-center  gap-2">
                 <Settings className="h-4 w-4" />
                 Settings
               </TabsTrigger>
-              <TabsTrigger value="points" className="flex items-center gap-2">
+              <TabsTrigger value="points" className="flex items-center  gap-2">
                 <DollarSign className="h-4 w-4" />
                 Point Values
               </TabsTrigger>
-              <TabsTrigger value="stats" className="flex items-center gap-2">
+              <TabsTrigger value="stats" className="flex items-center  gap-2">
                 <BarChart3 className="h-4 w-4" />
                 Statistics
               </TabsTrigger>

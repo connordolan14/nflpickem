@@ -159,7 +159,7 @@ export function WeeklyPicks({ userId }: WeeklyPicksProps) {
                   <h4 className="font-medium text-foreground">
                     {status.league_name}
                   </h4>
-                  <Badge className="text-xs bg-primary/20 text-primary border-primary/30">
+                  <Badge variant="default" className="text-xs">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Complete
                   </Badge>

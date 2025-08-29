@@ -100,6 +100,12 @@ FOR UPDATE
 USING (user_id = auth.uid() OR public.is_admin())
 WITH CHECK (user_id = auth.uid() OR public.is_admin());
 
+DROP POLICY IF EXISTS "picks_delete_self_or_admin" ON public.picks;
+CREATE POLICY "picks_delete_self_or_admin"
+ON public.picks
+FOR DELETE
+USING (user_id = auth.uid() OR public.is_admin());
+
 -- Games: public read
 ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "games_select_all" ON public.games;

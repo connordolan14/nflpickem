@@ -41,21 +41,6 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.is_member_of_league(bigint) TO anon, authenticated, service_role;
 
--- Helper: check if a league is public (bypasses RLS on leagues)
-CREATE OR REPLACE FUNCTION public.league_is_public(l_id bigint)
-RETURNS boolean
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.leagues l
-    WHERE l.id = l_id AND l.visibility = 'public'
-  );
-$$;
-
-GRANT EXECUTE ON FUNCTION public.league_is_public(bigint) TO anon, authenticated, service_role;
-
 -- 7) RPC: get league by join code without relying on leagues SELECT policy
 -- Returns minimal fields and bypasses RLS safely.
 CREATE OR REPLACE FUNCTION public.get_league_by_join_code(code text)
@@ -135,8 +120,8 @@ BEGIN
       AND p.week = NEW.week
       AND (TG_OP = 'INSERT' OR p.id <> NEW.id);
 
-  IF v_existing_count >= v_max_per_week THEN
-      RAISE EXCEPTION 'Max picks per week (% %) reached', v_max_per_week, 'picks';
+    IF v_existing_count + 1 > v_max_per_week THEN
+        RAISE EXCEPTION 'Max picks per week (% %) reached', v_max_per_week, 'picks';
     END IF;
 
     RETURN NEW;

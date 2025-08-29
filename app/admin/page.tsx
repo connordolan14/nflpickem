@@ -20,6 +20,7 @@ import {
   Calendar,
   Target,
   Award,
+  Settings,
 } from "lucide-react";
 import { TeamsDefaultsAdmin } from "@/components/admin/teams-defaults";
 
@@ -247,6 +248,13 @@ export default function AdminPage() {
           >
             Leagues
           </TabsTrigger>
+          <TabsTrigger
+            value="settings"
+            className="data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-all duration-200"
+          >
+            Settings
+          </TabsTrigger>
+
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -414,6 +422,40 @@ export default function AdminPage() {
                     </div>
                   ))
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+         <TabsContent value="settings" className="space-y-6">
+          <TeamsDefaultsAdmin />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                System Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Maintenance Mode</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Enable maintenance mode for system updates
+                    </p>
+                  </div>
+                  <Button variant="outline">Enable</Button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Auto Backup</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically backup database every 6 hours
+                    </p>
+                  </div>
+                  <Button variant="default">Configure</Button>
+                </div>
               </div>
             </CardContent>
           </Card>

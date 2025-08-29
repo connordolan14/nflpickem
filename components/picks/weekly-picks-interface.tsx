@@ -319,6 +319,7 @@ export function WeeklyPicksInterface({ userId, leagueId }: WeeklyPicksInterfaceP
   useEffect(() => {
     if (expandedWeek !== null) {
       fetchWeekData(expandedWeek);
+
     }
   }, [expandedWeek, fetchWeekData]);
 
@@ -372,15 +373,45 @@ export function WeeklyPicksInterface({ userId, leagueId }: WeeklyPicksInterfaceP
     if (slots <= 0 && !selectedTeams.includes(teamId)) return;
 
     setSelectedTeams((prev) => {
+      let updated;
       if (prev.includes(teamId)) {
-        return prev.filter((id) => id !== teamId);
+        updated = prev.filter((id) => id !== teamId);
+      } else if (prev.length < slots) {
+        updated = [...prev, teamId];
+      } else if (slots === 1) {
+        updated = [teamId];
+      } else {
+        const trimmed = prev.slice(prev.length - (slots - 1));
+        updated = [...trimmed, teamId];
       }
-      if (prev.length < slots) {
-        return [...prev, teamId];
+
+      // Update allPicks for the current week to always reflect selectedTeams (max 2)
+      if (expandedWeek !== null) {
+        setAllPicks((prevMap) => {
+          const newMap = new Map(prevMap);
+          // Build picks for this week from updated selectedTeams
+          const picksForWeek = updated.slice(0, 2).map((tid) => {
+            const game = games.find(
+              (g) => g.home_team_id === tid || g.away_team_id === tid
+            );
+            const logo =
+              game?.home_team_id === tid
+                ? game?.home_logo
+                : game?.away_team_id === tid
+                ? game?.away_logo
+                : null;
+            return {
+              team_id: tid,
+              logo,
+              is_bye: false,
+            };
+          });
+          newMap.set(expandedWeek, picksForWeek);
+          return newMap;
+        });
       }
-      if (slots === 1) return [teamId];
-      const trimmed = prev.slice(prev.length - (slots - 1));
-      return [...trimmed, teamId];
+
+      return updated;
     });
   };
 
@@ -674,3 +705,5 @@ export function WeeklyPicksInterface({ userId, leagueId }: WeeklyPicksInterfaceP
     </div>
   );
 }
+
+      

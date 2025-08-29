@@ -229,7 +229,7 @@ export default function AdminPage() {
         onValueChange={setActiveTab}
         className="space-y-6"
       >
-        <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+        <TabsList className="grid w-full  grid-cols-2 sm:grid-cols-4  bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
           <TabsTrigger
             value="overview"
             className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all duration-200"
@@ -252,7 +252,7 @@ export default function AdminPage() {
             value="settings"
             className="data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-all duration-200"
           >
-            Settings
+            Default Team points
           </TabsTrigger>
 
         </TabsList>
@@ -428,37 +428,6 @@ export default function AdminPage() {
         </TabsContent>
          <TabsContent value="settings" className="space-y-6">
           <TeamsDefaultsAdmin />
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                System Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Maintenance Mode</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Enable maintenance mode for system updates
-                    </p>
-                  </div>
-                  <Button variant="outline">Enable</Button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Auto Backup</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Automatically backup database every 6 hours
-                    </p>
-                  </div>
-                  <Button variant="default">Configure</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

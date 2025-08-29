@@ -260,7 +260,7 @@ export function LeagueStandings({ leagueId, userId }: LeagueStandingsProps) {
       </Card>
 
       {/* Points Progression Chart */}
-      <Card className="backdrop-blur-sm bg-card/80 border-border/50">
+      <Card className="backdrop-blur-sm max-sm:hidden bg-card/80 border-border/50">
         <CardHeader>
           <CardTitle>Points Progression</CardTitle>
         </CardHeader>

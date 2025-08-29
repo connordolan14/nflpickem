@@ -50,10 +50,11 @@ ON public.profiles FOR UPDATE
 USING (user_id = auth.uid())
 WITH CHECK (user_id = auth.uid());
 
--- League members: self/admin read, self/admin insert, self/admin delete
-CREATE POLICY league_members_select_self_or_admin
+-- League members: members of the league or admin can read; insert/delete remain self/admin
+DROP POLICY IF EXISTS league_members_select_self_or_admin ON public.league_members;
+CREATE POLICY league_members_select_member_or_admin
 ON public.league_members FOR SELECT
-USING (user_id = auth.uid() OR public.is_admin());
+USING (public.is_member_of_league(league_id) OR public.is_admin());
 
 CREATE POLICY league_members_insert_self_or_admin
 ON public.league_members FOR INSERT
@@ -63,10 +64,17 @@ CREATE POLICY league_members_delete_self_or_admin
 ON public.league_members FOR DELETE
 USING (user_id = auth.uid() OR public.is_admin());
 
--- League member state: self/admin read & write
-CREATE POLICY league_member_state_select_self_or_admin
+-- Additionally, for public leagues, allow anyone to read league_members (needed for public listings and member counts)
+DROP POLICY IF EXISTS league_members_select_public ON public.league_members;
+CREATE POLICY league_members_select_public
+ON public.league_members FOR SELECT
+USING (public.league_is_public(league_id));
+
+-- League member state: league members or admin can read; writes stay self/admin
+DROP POLICY IF EXISTS league_member_state_select_self_or_admin ON public.league_member_state;
+CREATE POLICY league_member_state_select_member_or_admin
 ON public.league_member_state FOR SELECT
-USING (user_id = auth.uid() OR public.is_admin());
+USING (public.is_member_of_league(league_id) OR public.is_admin());
 
 CREATE POLICY league_member_state_insert_self_or_admin
 ON public.league_member_state FOR INSERT
@@ -77,10 +85,15 @@ ON public.league_member_state FOR UPDATE
 USING (user_id = auth.uid() OR public.is_admin())
 WITH CHECK (user_id = auth.uid() OR public.is_admin());
 
--- Leagues: open read; writes constrained to owner/admin
-CREATE POLICY leagues_select_all
+-- Leagues: public visible to all; private visible to members or admin; writes constrained to owner/admin
+DROP POLICY IF EXISTS leagues_select_all ON public.leagues;
+CREATE POLICY leagues_select_visibility
 ON public.leagues FOR SELECT
-USING (true);
+USING (
+  public.league_is_public(id)
+  OR public.is_member_of_league(id)
+  OR public.is_admin()
+);
 
 CREATE POLICY leagues_insert_owner_or_admin
 ON public.leagues FOR INSERT
@@ -95,10 +108,11 @@ CREATE POLICY leagues_delete_owner_admin
 ON public.leagues FOR DELETE
 USING (owner_id = auth.uid() OR public.is_admin());
 
--- Picks: self/admin read & write
-CREATE POLICY picks_select_self_or_admin
+-- Picks: league members or admin can read; writes remain self/admin
+DROP POLICY IF EXISTS picks_select_self_or_admin ON public.picks;
+CREATE POLICY picks_select_member_or_admin
 ON public.picks FOR SELECT
-USING (user_id = auth.uid() OR public.is_admin());
+USING (public.is_member_of_league(league_id) OR public.is_admin());
 
 CREATE POLICY picks_insert_self_or_admin
 ON public.picks FOR INSERT
@@ -123,20 +137,30 @@ ON public.teams FOR UPDATE
 USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
--- Scores: open read (standings)
-CREATE POLICY scores_select_all
+-- Scores: visible for public leagues to all; private leagues only for members/admin
+DROP POLICY IF EXISTS scores_select_all ON public.scores;
+CREATE POLICY scores_select_visibility
 ON public.scores FOR SELECT
-USING (true);
+USING (
+  public.league_is_public(league_id)
+  OR public.is_member_of_league(league_id)
+  OR public.is_admin()
+);
 
 -- Seasons: open read
 CREATE POLICY seasons_select_all
 ON public.seasons FOR SELECT
 USING (true);
 
--- League team values: open read
-CREATE POLICY league_team_values_select_all
+-- League team values: visible for public leagues to all; private leagues only for members/admin
+DROP POLICY IF EXISTS league_team_values_select_all ON public.league_team_values;
+CREATE POLICY league_team_values_select_visibility
 ON public.league_team_values FOR SELECT
-USING (true);
+USING (
+  public.league_is_public(league_id)
+  OR public.is_member_of_league(league_id)
+  OR public.is_admin()
+);
 
 -- League team values: writes allowed to league owner or admin
 DROP POLICY IF EXISTS league_team_values_insert_owner_admin ON public.league_team_values;

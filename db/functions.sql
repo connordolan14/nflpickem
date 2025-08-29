@@ -26,6 +26,36 @@ $$;
 -- Grant execute to authenticated users
 GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated, service_role;
 
+-- Helper: check if current user is a member of the given league (bypasses RLS via definer)
+CREATE OR REPLACE FUNCTION public.is_member_of_league(l_id bigint)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.league_members lm
+    WHERE lm.league_id = l_id AND lm.user_id = auth.uid()
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_member_of_league(bigint) TO anon, authenticated, service_role;
+
+-- Helper: check if a league is public (bypasses RLS on leagues)
+CREATE OR REPLACE FUNCTION public.league_is_public(l_id bigint)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.leagues l
+    WHERE l.id = l_id AND l.visibility = 'public'
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.league_is_public(bigint) TO anon, authenticated, service_role;
+
 -- 7) RPC: get league by join code without relying on leagues SELECT policy
 -- Returns minimal fields and bypasses RLS safely.
 CREATE OR REPLACE FUNCTION public.get_league_by_join_code(code text)
@@ -260,3 +290,28 @@ ON CONFLICT (league_id, user_id, week) DO UPDATE
 SET points = EXCLUDED.points,
     detail = EXCLUDED.detail;
 $$;
+
+-- 9) Auto-create profile on new auth user signup to ensure a single profile row exists
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (user_id, display_name, role)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+    'user'
+  )
+  ON CONFLICT (user_id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_new_user();

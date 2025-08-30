@@ -7,7 +7,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
             <Link href="/" className="text-2xl font-bold text-primary font-serif mb-4 block">
-              NFL PickEm
+              NFL Pick Two
             </Link>
             <p className="text-muted-foreground mb-4 max-w-md">
               The strategic NFL fantasy experience where every pick matters. Join thousands of fans making smarter
@@ -59,7 +59,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-border/50 mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 NFL PickEm. All rights reserved.</p>
+          <p>&copy; 2025 NFL Pick Two. All rights reserved.</p>
         </div>
       </div>
     </footer>

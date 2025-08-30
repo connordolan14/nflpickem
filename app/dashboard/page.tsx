@@ -48,7 +48,7 @@ export default function DashboardPage() {
             Dashboard
           </h1>
           <p className="text-muted-foreground">
-            Welcome back! Here's your NFL PickEm overview.
+            Welcome back! Here's your NFL Pick Two overview.
           </p>
         </div>
 

@@ -58,7 +58,7 @@ export default function AuthPage() {
       <Card className="w-full max-w-md backdrop-blur-md bg-white/10 border-white/20">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl text-white">
-            <Link href="/">NFL PickEm</Link>
+            <Link href="/">NFL Pick Two</Link>
           </CardTitle>
           <CardDescription className="text-white/70">
             Sign in with your email address

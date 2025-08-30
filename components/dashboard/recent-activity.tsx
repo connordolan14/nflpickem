@@ -4,18 +4,14 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Trophy, Users, Target } from "lucide-react";
+import {
+  fetchLatestWeekPicks,
+  convertPicksToActivity,
+  type RecentActivity as ActivityItem,
+} from "@/lib/recent";
 
 interface RecentActivityProps {
   userId: string;
-}
-
-interface ActivityItem {
-  id: string;
-  type: "score" | "pick" | "league_join" | "league_create";
-  title: string;
-  description: string;
-  timestamp: string;
-  points?: number;
 }
 
 export function RecentActivity({ userId }: RecentActivityProps) {
@@ -25,42 +21,11 @@ export function RecentActivity({ userId }: RecentActivityProps) {
   useEffect(() => {
     async function fetchRecentActivity() {
       try {
-        // This would normally fetch from multiple tables and combine
-        // For now, using mock data to demonstrate the UI
-        const mockActivities: ActivityItem[] = [
-          {
-            id: "1",
-            type: "score",
-            title: "Week 1 Results",
-            description: "Earned 24 points in NFL Masters League",
-            timestamp: "2024-09-10T20:00:00Z",
-            points: 24,
-          },
-          {
-            id: "2",
-            type: "pick",
-            title: "Week 2 Picks",
-            description: "Selected Chiefs and Bills for Week 2",
-            timestamp: "2024-09-09T15:30:00Z",
-          },
-          {
-            id: "3",
-            type: "league_join",
-            title: "Joined League",
-            description: "Joined 'Office Championship' league",
-            timestamp: "2024-09-08T10:15:00Z",
-          },
-          {
-            id: "4",
-            type: "score",
-            title: "Week 1 Results",
-            description: "Earned 18 points in Office Championship",
-            timestamp: "2024-09-07T21:00:00Z",
-            points: 18,
-          },
-        ];
+        // Fetch latest week picks data from the database
+        const latestWeekPicks = await fetchLatestWeekPicks(userId);
+        const pickActivities = convertPicksToActivity(latestWeekPicks);
 
-        setActivities(mockActivities);
+        setActivities(pickActivities);
       } catch (error) {
         console.error("Error fetching recent activity:", error);
       } finally {
@@ -141,16 +106,25 @@ export function RecentActivity({ userId }: RecentActivityProps) {
   return (
     <Card className="backdrop-blur-sm bg-card/80 border-border/50">
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Activity className="h-5 w-5 mr-2 text-primary" />
-          Recent Activity
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Target className="h-5 w-5 mr-2 text-primary" />
+            Latest Week Picks
+          </div>
+          {activities.length > 0 && (
+            <Badge variant="outline" className="text-xs">
+              Week {activities[0]?.week}
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {activities.length === 0 ? (
           <div className="text-center py-6">
-            <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">No recent activity.</p>
+            <Target className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              No picks for the latest week.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">

@@ -7,6 +7,7 @@ import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { MyLeagues } from "@/components/dashboard/my-leagues";
 import { WeeklyPicks } from "@/components/dashboard/weekly-picks";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
+import { JoinedLeagues } from "@/components/dashboard/joined-leagues";
 import { Header } from "@/components/layout/header";
 
 export default function DashboardPage() {
@@ -57,6 +58,7 @@ export default function DashboardPage() {
           <div className="lg:col-span-2 space-y-6">
             <DashboardStats userId={user.id} />
             <MyLeagues userId={user.id} />
+            <JoinedLeagues userId={user.id} />
           </div>
 
           {/* Right Column - Picks and Activity */}

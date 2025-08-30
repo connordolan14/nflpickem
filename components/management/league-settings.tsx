@@ -81,18 +81,7 @@ export function LeagueSettings({ league, onLeagueUpdate }: LeagueSettingsProps) 
               <p className="text-xs text-muted-foreground">{formData.name.length}/50 characters</p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Describe your league (optional)"
-                rows={3}
-                maxLength={500}
-              />
-              <p className="text-xs text-muted-foreground">{formData.description.length}/500 characters</p>
-            </div>
+      
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">

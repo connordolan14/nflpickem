@@ -27,7 +27,7 @@ export function HeroSection() {
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            The ultimate NFL pick'em experience where strategy meets simplicity. Make your picks count in leagues that
+            The ultimate NFL Pick Two experience where strategy meets simplicity. Make your picks count in leagues that
             reward smart decisions.
           </p>
 

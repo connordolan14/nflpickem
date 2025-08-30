@@ -27,7 +27,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [profileData, setProfileData] = useState({
     displayName: "",
     email: user?.email || "",
-    bio: "NFL PickEm enthusiast who loves making predictions and competing with friends!",
+    bio: "NFL Pick Two enthusiast who loves making predictions and competing with friends!",
     favoriteTeam: "Any Team",
     joinDate: new Date().toLocaleDateString(),
   });
@@ -74,7 +74,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     setProfileData({
       displayName: user?.user_metadata?.full_name || "User",
       email: user?.email || "",
-      bio: "NFL PickEm enthusiast who loves making predictions and competing with friends!",
+      bio: "NFL Pick Two enthusiast who loves making predictions and competing with friends!",
       favoriteTeam: "Any Team",
       joinDate: new Date().toLocaleDateString(),
     });

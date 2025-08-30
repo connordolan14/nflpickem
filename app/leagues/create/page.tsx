@@ -43,7 +43,7 @@ export default function CreateLeaguePage() {
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold font-serif text-foreground mb-2">Create New League</h1>
-            <p className="text-muted-foreground">Set up your NFL pick'em league with custom rules and team values.</p>
+            <p className="text-muted-foreground">Set up your NFL Pick Two league with custom rules and team values.</p>
           </div>
           <LeagueCreationForm userId={user.id} />
         </div>

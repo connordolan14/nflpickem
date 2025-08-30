@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "NFL PickEm - Strategic NFL Fantasy",
+  title: "NFL Pick Two - Strategic NFL Fantasy",
   description: "Pick Smart, Pick Once - Strategic NFL Fantasy League",
   generator: "v0.app",
 };

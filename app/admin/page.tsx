@@ -220,7 +220,7 @@ export default function AdminPage() {
           Admin Dashboard
         </h1>
         <p className="text-muted-foreground">
-          Manage your NFL PickEm application and monitor system performance
+          Manage your NFL Pick Two application and monitor system performance
         </p>
       </div>
 

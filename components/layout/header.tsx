@@ -139,7 +139,7 @@ export function Header() {
             >
               <User className="h-4 w-4" />
             </Button>
-            <ThemeToggle />
+            {/* <ThemeToggle /> */}
           </nav>
 
           {/* Mobile Menu Button */}

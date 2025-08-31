@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { Menu, X, User } from "lucide-react";
 import { ProfileModal } from "./profile-modal";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {

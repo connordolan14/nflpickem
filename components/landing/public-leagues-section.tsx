@@ -68,7 +68,7 @@ export function PublicLeaguesSection() {
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold font-serif text-foreground mb-4">Featured Public Leagues</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Join thousands of NFL fans in these popular public leagues. No invitation needed!
+            Compete in public leagues. No invitation needed!
           </p>
         </div>
 

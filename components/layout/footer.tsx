@@ -10,12 +10,11 @@ export function Footer() {
               NFL Pick Two
             </Link>
             <p className="text-muted-foreground mb-4 max-w-md">
-              The strategic NFL fantasy experience where every pick matters. Join thousands of fans making smarter
-              picks.
+              The strategic NFL fantasy experience where every pick matters. Compete against fellow fans across the entier season.
             </p>
           </div>
 
-          <div>
+          {/* <div>
             <h3 className="font-semibold text-foreground mb-4">Game</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -55,7 +54,7 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
+          </div> */}
         </div>
 
         <div className="border-t border-border/50 mt-8 pt-8 text-center text-sm text-muted-foreground">

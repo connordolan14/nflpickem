@@ -6,17 +6,17 @@ export function GameConceptSection() {
     {
       icon: Target,
       title: "Pick 2 Teams Weekly",
-      description: "Select exactly 2 NFL teams each week to earn points based on their performance.",
+      description: "Select exactly 2 teams each week to win their matchups. Each team's value is based on pre-season rankings - and underdogs are worth more. If they win, so do you.",
     },
     {
       icon: Calendar,
       title: "Use Each Team Once",
-      description: "Strategic depth - you can only pick each NFL team once per season. Choose wisely!",
+      description: "Pick each NFL team once per season, and your pick lock at time of kickoff. Think about each team's season schedules, their point value, and choose wisely!",
     },
     {
       icon: Clock,
-      title: "4 Bye Weeks Allowed",
-      description: "Skip up to 4 weeks during the season when you need a strategic break.",
+      title: "4 Byes Allowed",
+      description: "Skip up to 4 matchups during the season. Whether you forget to pick or the matchups are too close to choose. When you pick a team matters!",
     },
     {
       icon: Users,
@@ -31,7 +31,7 @@ export function GameConceptSection() {
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold font-serif text-foreground mb-4">How It Works</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Simple rules, strategic gameplay. Master the art of NFL team selection.
+            Pick, Save, and Win. NFL Survivor Pools meets Weekly Pick 'Em Pools'
           </p>
         </div>
 

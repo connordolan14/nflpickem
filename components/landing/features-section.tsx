@@ -6,22 +6,12 @@ export function FeaturesSection() {
     {
       icon: Zap,
       title: "Custom League Creation",
-      description: "Set your own rules, point values, and league settings. Make it uniquely yours.",
+      description: "Create a private league, set your own team point values, and customize league settings. Compete with your friends and family.",
     },
     {
       icon: BarChart3,
       title: "Real-time Standings",
       description: "Track your progress with live leaderboards and detailed scoring breakdowns.",
-    },
-    {
-      icon: Smartphone,
-      title: "Mobile Friendly",
-      description: "Make picks on the go with our responsive design optimized for all devices.",
-    },
-    {
-      icon: Shield,
-      title: "Secure & Reliable",
-      description: "Your data is protected with enterprise-grade security and 99.9% uptime.",
     },
   ]
 

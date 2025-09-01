@@ -22,13 +22,12 @@ export function HeroSection() {
             NFL <span className="text-primary">Pick Two</span>
             <br />
             <span className="text-2xl md:text-4xl lg:text-5xl font-semibold text-muted-foreground">
-              Strategic NFL Fantasy
+              Strategic Weekly NFL Fantasy Game
             </span>
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            The ultimate NFL Pick Two experience where strategy meets simplicity. Make your picks count in leagues that
-            reward smart decisions.
+            NFL Survivor Pools meets Weekly Pick 'Em. Select the winner of two head to head matchups each week.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

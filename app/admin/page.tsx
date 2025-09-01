@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
+import { Header } from "@/components/layout/header";
 import {
   Users,
   Trophy,
@@ -214,7 +215,9 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-accent/10">
+      <Header />
+      <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-primary mb-2">
           Admin Dashboard
@@ -430,6 +433,7 @@ export default function AdminPage() {
           <TeamsDefaultsAdmin />
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

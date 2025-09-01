@@ -1,5 +1,5 @@
 import { HeroSection } from "@/components/landing/hero-section"
-import { FeaturesSection } from "@/components/landing/features-section"
+// import { FeaturesSection } from "@/components/landing/features-section"
 import { PublicLeaguesSection } from "@/components/landing/public-leagues-section"
 import { GameConceptSection } from "@/components/landing/game-concept-section"
 import { Header } from "@/components/layout/header"
@@ -14,7 +14,7 @@ export default function HomePage() {
       <main>
         <HeroSection />
         <GameConceptSection />
-        <FeaturesSection />
+        {/* <FeaturesSection /> */}
         <PublicLeaguesSection />
       </main>
       <Footer />

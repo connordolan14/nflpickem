@@ -5,14 +5,14 @@ export function Footer() {
     <footer className="bg-muted/50 border-t border-border/50 py-12">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="col-span-1 md:col-span-2">
+          {/* <div className="col-span-1 md:col-span-2">
             <Link href="/" className="text-2xl font-bold text-primary font-serif mb-4 block">
               NFL Pick Two
             </Link>
             <p className="text-muted-foreground mb-4 max-w-md">
               The strategic NFL fantasy experience where every pick matters. Compete against fellow fans across the entier season.
             </p>
-          </div>
+          </div> */}
 
           {/* <div>
             <h3 className="font-semibold text-foreground mb-4">Game</h3>

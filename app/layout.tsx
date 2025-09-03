@@ -6,8 +6,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "NFL Pick Two - Strategic NFL Fantasy",
-  description: "Pick Smart, Pick Once - Strategic NFL Fantasy League",
+  title: "NFL Pick Two",
+  description: "NFL Survivor Pools meets Weekly Pick 'Em. Select the winner of two head to head matchups each week.",
   generator: "v0.app",
 };
 
